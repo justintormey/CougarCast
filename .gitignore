@@ -1,0 +1,6 @@
+.DS_Store
+.superpowers/
+docs/superpowers/
+data/
+*.game.json
+*-vs-*.json

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AInnouncR - Mike 2.0</title>
+  <link rel="stylesheet" href="css/style.css?v=10">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <button id="settings-btn" class="icon-btn" title="Settings">&#9881;</button>
+      </div>
+      <div class="header-center">
+        <h1 class="app-title">Mike 2.0</h1>
+        <div class="app-version">v0.0.1</div>
+      </div>
+      <div class="header-right"></div>
+    </header>
+
+    <!-- Score Bar (always visible) -->
+    <div class="score-bar">
+      <span class="team-score home">
+        <button class="score-adjust" data-team="home" data-delta="-1" title="Subtract 1">-</button>
+        <span id="home-team-name" class="team-name">Home</span>
+        <span id="home-team-score" class="team-score-num">0</span>
+        <button class="score-adjust" data-team="home" data-delta="1" title="Add 1">+</button>
+      </span>
+      <span class="score-vs">vs</span>
+      <span class="team-score away">
+        <button class="score-adjust" data-team="away" data-delta="-1" title="Subtract 1">-</button>
+        <span id="away-team-score" class="team-score-num">0</span>
+        <span id="away-team-name" class="team-name">Visiting</span>
+        <button class="score-adjust" data-team="away" data-delta="1" title="Add 1">+</button>
+      </span>
+    </div>
+
+    <!-- Tab Bar -->
+    <nav class="tab-bar">
+      <button class="tab active" data-tab="game">Game</button>
+      <button class="tab" data-tab="announcements">Announcements</button>
+    </nav>
+
+    <!-- Game Tab -->
+    <div id="game-tab" class="tab-content active">
+      <!-- Rosters -->
+      <div class="rosters">
+        <div class="roster home-roster" id="home-roster">
+          <div class="roster-header home" id="home-roster-header">HOME</div>
+          <div class="roster-list" id="home-roster-list"></div>
+        </div>
+        <div class="roster away-roster" id="away-roster">
+          <div class="roster-header away" id="away-roster-header">AWAY</div>
+          <div class="roster-list" id="away-roster-list"></div>
+        </div>
+      </div>
+
+      <!-- Action Buttons (dynamically generated from sport preset) -->
+      <div class="action-bar"></div>
+
+      <!-- Sequence Bar -->
+      <div class="sequence-bar" id="sequence-bar">
+        <span class="sequence-label">Sequence:</span>
+        <div class="sequence-chips" id="sequence-chips"></div>
+        <button class="clear-btn" id="clear-sequence" title="Clear sequence">&times;</button>
+      </div>
+
+      <!-- Custom Text Input (hidden by default) -->
+      <div class="custom-input-bar" id="custom-input-bar" style="display:none;">
+        <input type="text" id="custom-text" class="custom-text-input" placeholder="Type custom announcement...">
+        <button class="generate-btn" id="custom-generate">Generate</button>
+      </div>
+
+      <!-- Audio Bar -->
+      <div class="audio-bar" id="audio-bar">
+        <div class="audio-text" id="audio-text">Tap a player and an action to build an announcement...</div>
+        <div class="audio-controls">
+          <button class="audio-btn preview-btn" id="preview-btn" disabled>PREVIEW</button>
+          <button class="audio-btn play-btn" id="play-btn" disabled>&#9654; PLAY</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Announcements Tab -->
+    <div id="announcements-tab" class="tab-content">
+      <div class="announcements-container" id="announcements-container">
+        <div class="announcement-list" id="announcement-list"></div>
+        <button class="add-announcement-btn" id="add-announcement-btn">+ Add Announcement</button>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal" style="display:none;">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Settings</h2>
+          <button class="modal-close" id="settings-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <!-- API Key -->
+          <div class="setting-group">
+            <label class="setting-label">ElevenLabs API Key</label>
+            <input type="password" id="elevenlabs-key" class="setting-input" placeholder="Enter API key...">
+          </div>
+
+          <!-- Voice Selection -->
+          <div class="setting-group">
+            <label class="setting-label">Voice</label>
+            <div class="voice-row">
+              <select id="voice-select" class="setting-select">
+                <option value="">Enter API key first</option>
+              </select>
+              <button class="refresh-btn" id="refresh-voices" title="Refresh voices">&#8635;</button>
+            </div>
+          </div>
+
+          <!-- Sport Preset -->
+          <div class="setting-group">
+            <label class="setting-label">Sport</label>
+            <select id="sport-preset" class="setting-select">
+              <option value="lacrosse">Lacrosse</option>
+              <option value="field-hockey">Field Hockey</option>
+              <option value="ice-hockey">Ice Hockey</option>
+              <option value="soccer">Soccer</option>
+              <option value="basketball">Basketball</option>
+              <option value="football">Football</option>
+              <option value="baseball">Baseball / Softball</option>
+              <option value="custom">Custom</option>
+            </select>
+            <div class="setting-hint" id="sport-description"></div>
+          </div>
+
+          <!-- Home Team -->
+          <div class="setting-group">
+            <label class="setting-label">Home Team</label>
+            <div class="team-inputs">
+              <input type="text" id="home-name" class="setting-input" placeholder="Team name">
+              <input type="text" id="home-mascot" class="setting-input short" placeholder="Mascot">
+              <input type="color" id="home-color" class="color-input" value="#1565c0">
+            </div>
+            <div class="team-energy-row">
+              <label class="energy-label">Announce energy:</label>
+              <select id="home-energy" class="setting-select energy-select">
+                <option value="high">High energy (home crowd!)</option>
+                <option value="neutral">Neutral</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Visiting Team -->
+          <div class="setting-group">
+            <label class="setting-label">Visiting Team</label>
+            <div class="team-inputs">
+              <input type="text" id="away-name" class="setting-input" placeholder="Team name">
+              <input type="text" id="away-mascot" class="setting-input short" placeholder="Mascot">
+              <input type="color" id="away-color" class="color-input" value="#b71c1c">
+            </div>
+            <div class="team-energy-row">
+              <label class="energy-label">Announce energy:</label>
+              <select id="away-energy" class="setting-select energy-select">
+                <option value="high">High energy</option>
+                <option value="neutral" selected>Neutral (visitor)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Roster Management -->
+          <div class="setting-group">
+            <label class="setting-label">Rosters</label>
+            <div class="roster-management">
+              <div class="roster-edit-section">
+                <h4 id="roster-edit-home-label">Home Roster</h4>
+                <div id="roster-edit-home"></div>
+                <button class="add-player-btn" data-team="home">+ Add Player</button>
+              </div>
+              <div class="roster-edit-section">
+                <h4 id="roster-edit-away-label">Away Roster</h4>
+                <div id="roster-edit-away"></div>
+                <button class="add-player-btn" data-team="away">+ Add Player</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Import/Export -->
+          <div class="setting-group">
+            <label class="setting-label">Data</label>
+            <div class="data-buttons">
+              <button class="data-btn" id="export-btn">Export Game Data</button>
+              <button class="data-btn" id="import-btn">Import Game Data</button>
+              <input type="file" id="import-file" accept=".json" style="display:none;">
+              <button class="data-btn danger" id="reset-btn">Reset to Sample Data</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Announcement Modal -->
+    <div class="modal-overlay" id="announcement-modal" style="display:none;">
+      <div class="modal small">
+        <div class="modal-header">
+          <h2 id="announcement-modal-title">Add Announcement</h2>
+          <button class="modal-close" id="announcement-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="setting-group">
+            <label class="setting-label">Title</label>
+            <input type="text" id="announcement-title" class="setting-input" placeholder="e.g., Sponsor: Bob's Auto Body">
+          </div>
+          <div class="setting-group">
+            <label class="setting-label">Text</label>
+            <textarea id="announcement-text" class="setting-textarea" rows="4" placeholder="The announcement text to be spoken..."></textarea>
+          </div>
+          <div class="setting-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="announcement-dynamic" class="checkbox-input">
+              <span>Include current score when played</span>
+            </label>
+            <div class="setting-hint" id="dynamic-hint" style="display:none;">Text will auto-update with the current score each time it's played. You can still edit the wording.</div>
+          </div>
+          <div class="modal-actions">
+            <button class="data-btn primary" id="announcement-save">Save</button>
+            <button class="data-btn" id="announcement-refresh" style="display:none;" title="Regenerate from current score">Refresh from Score</button>
+            <button class="data-btn danger" id="announcement-delete" style="display:none;">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

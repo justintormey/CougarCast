@@ -1,0 +1,59 @@
+name: Deploy to S3 (mike2)
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      ENABLE_LIVE_DEPLOY: ${{ secrets.ENABLE_LIVE_DEPLOY || 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Dry-run sync to S3 (safe)
+        run: |
+          aws s3 sync . s3://justintormey.com/mike2 --delete \
+            --exclude ".git/*" \
+            --exclude ".github/*" \
+            --exclude ".superpowers/*" \
+            --exclude "docs/*" \
+            --exclude "data/*" \
+            --exclude "README.md" \
+            --exclude ".gitignore" \
+            --dryrun
+
+      - name: Real sync to S3 (only if enabled)
+        if: ${{ env.ENABLE_LIVE_DEPLOY == 'true' }}
+        run: |
+          aws s3 sync . s3://justintormey.com/mike2 --delete \
+            --exclude ".git/*" \
+            --exclude ".github/*" \
+            --exclude ".superpowers/*" \
+            --exclude "docs/*" \
+            --exclude "data/*" \
+            --exclude "README.md" \
+            --exclude ".gitignore"
+
+      - name: Invalidate CloudFront
+        if: ${{ env.ENABLE_LIVE_DEPLOY == 'true' }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/mike2/*"
