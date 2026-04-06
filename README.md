@@ -1,12 +1,10 @@
-# Mike 2.0 🎙️
+# AIAnnounceR
 
 **The AI sports announcer that never gets nervous.**
 
-Mike 2.0 is an AI-powered live sports announcing system that turns any parent with a tablet into a stadium announcer. Built for high school lacrosse, but ready for any sport.
+AIAnnounceR is an AI-powered live sports announcing system that turns any parent with a tablet into a stadium announcer. Built for high school lacrosse, but ready for any sport.
 
-> *"Our announcer Mike is retiring after years behind the mic. Not everyone is comfortable announcing live to the whole stadium (and web broadcast). So we built Mike 2.0 — tap the player, tap the action, and let AI do the talking."*
-
-**[Live Demo →](https://demo.justintormey.com/mike2/)**
+> *"Not everyone is comfortable announcing live to the whole stadium. So we built AIAnnounceR — tap the player, tap the action, and let AI do the talking."*
 
 ---
 
@@ -20,7 +18,7 @@ That's it. The operator taps players and events on the dashboard, the system gen
 
 ### The Stereo Trick
 
-Mike 2.0 uses **stereo channel separation** for zero-hardware-overhead booth monitoring:
+AIAnnounceR uses **stereo channel separation** for zero-hardware-overhead booth monitoring:
 
 - **Left channel** → Booth headphones (Preview)
 - **Right channel** → PA system (Play)
@@ -91,7 +89,7 @@ Select your sport in Settings and the app auto-configures:
 
 ### Quick Start
 
-1. Open **[demo.justintormey.com/mike2/](https://demo.justintormey.com/mike2/)** on your tablet
+1. Clone this repo and open `index.html` in a browser (or serve with any static server)
 2. Tap the **gear icon** → enter your ElevenLabs API key → refresh voices → pick a voice
 3. Set up your **teams** (name, mascot, color) and **rosters** (number, name, position)
 4. Fill in the **"Say as..."** field for any tricky names
@@ -103,7 +101,7 @@ Select your sport in Settings and the app auto-configures:
 
 1. Create an account at [elevenlabs.io](https://elevenlabs.io)
 2. Go to **Profile** → copy your **API Key**
-3. In Mike 2.0 Settings, paste the key and click the refresh button next to Voice
+3. In AIAnnounceR Settings, paste the key and click the refresh button next to Voice
 4. Select a voice — recommended voices for sports announcing:
    - **Daniel** — Steady Broadcaster (great default)
    - **Adam** — Dominant, Firm
@@ -114,7 +112,7 @@ Select your sport in Settings and the app auto-configures:
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌──────────┐
 │   Tablet    │────▶│ Stereo Y-Splitter │────▶│ PA Input │
-│ (Mike 2.0)  │     │                  │     │ (Right)  │
+│(AIAnnounceR)│     │                  │     │ (Right)  │
 └─────────────┘     │                  │     └──────────┘
                     │                  │     ┌──────────┐
                     │                  │────▶│Headphones│
@@ -160,7 +158,7 @@ Select your sport in Settings and the app auto-configures:
 
 | Setting | Description |
 |---------|-------------|
-| **ElevenLabs API Key** | Your API key from elevenlabs.io/profile |
+| **ElevenLabs API Key** | Your API key from elevenlabs.io/profile — stored in browser localStorage, never sent to a server |
 | **Voice** | Select from available ElevenLabs voices |
 | **Sport** | Pre-configures game segments and action buttons |
 | **Game Segments** | Comma-separated (e.g., `Q1, Q2, Q3, Q4, OT`) |
@@ -180,6 +178,10 @@ All data is stored in your browser's **localStorage**:
 
 Use **Export Game Data** to save a JSON backup. **Import** to restore or share setups between devices.
 
+### Roster Format
+
+See `data/sample-game.json` for the expected JSON structure.
+
 ---
 
 ## Tech Stack
@@ -187,19 +189,16 @@ Use **Export Game Data** to save a JSON backup. **Import** to restore or share s
 | Layer | Technology |
 |-------|------------|
 | Frontend | Vanilla HTML/CSS/JS (ES Modules) |
-| Styling | Sneat-inspired light admin theme (Inter font) |
 | TTS | ElevenLabs API (pluggable provider interface) |
 | Text Generation | Template pools with randomized phrasing |
 | Audio Routing | Web Audio API (StereoPannerNode) |
 | Storage | localStorage + JSON import/export |
-| Hosting | AWS S3 + CloudFront |
-| CI/CD | GitHub Actions (OIDC → S3 sync → CloudFront invalidation) |
 
 ---
 
 ## Roadmap
 
-- [ ] Native iOS app (v2) — better offline support, native audio routing
+- [ ] Native iOS app — better offline support, native audio routing
 - [ ] Claude API integration — context-aware commentary instead of templates
 - [ ] Music cues — short clips for hype moments, goal horns
 - [ ] Playlist integration — Spotify/Apple Music for pre-game and halftime
@@ -212,7 +211,3 @@ Use **Export Game Data** to save a JSON backup. **Import** to restore or share s
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-*Built with love for high school lacrosse. Go Cougars! 🥍*
