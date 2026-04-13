@@ -4,3 +4,4 @@ docs/superpowers/
 data/
 *.game.json
 *-vs-*.json
+node_modules/
