@@ -5,7 +5,7 @@
 AI-powered live sports announcing system. The operator taps a player and an action on a tablet; the system generates a varied natural-language announcement, converts it to speech via ElevenLabs, and routes audio to the PA system through stereo channel separation. Originally built for high school lacrosse but ships with presets for 7 sports.
 
 Public open-source reference project at `~/Documents/PROJECTS/CougarCast`.  
-Personal team-specific instance: `~/Documents/PROJECTS/CougarCast-Monty` (CougarCast, with real roster data — keep out of public repo).
+Team-specific roster data and deploy config live in `.local/` (gitignored, never committed).
 
 ---
 
@@ -64,7 +64,7 @@ Personal team-specific instance: `~/Documents/PROJECTS/CougarCast-Monty` (Cougar
 
 ## Important Notes
 
-- **Roster data**: Never commit `CougarCast-Monty` roster data (real players, minors) to the public repo.
+- **Roster data**: Real player names live in `.local/scripts/generate-game.py` (gitignored). The committed version uses sample names only.
 - **API key**: ElevenLabs key stored in `localStorage`, never sent to any server except ElevenLabs directly.
 - **Deployment**: `index.html` served as a static file — no server-side code anywhere in the stack.
 
