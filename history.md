@@ -50,7 +50,7 @@ Personal team-specific instance: `~/Documents/PROJECTS/CougarCast-Monty` (Cougar
 ## Unfinished Work
 
 ### Immediate Next Steps
-- Live demo at `demo.justintormey.com/mike2/`
+- Live demo at `demo.justintormey.com/cougarcast/`
 
 ### Future Enhancements
 - Native iOS app — better offline support, native audio routing
@@ -58,7 +58,7 @@ Personal team-specific instance: `~/Documents/PROJECTS/CougarCast-Monty` (Cougar
 - Claude API integration — context-aware commentary replacing templates
 - Two-device mode — controller tablet + dedicated PA player
 - Voice cloning — clone the retiring announcer's voice (with permission)
-- Live demo at `demo.justintormey.com/mike2/`
+- Live demo at `demo.justintormey.com/cougarcast/`
 
 ---
 
