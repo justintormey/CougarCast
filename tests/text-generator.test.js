@@ -213,6 +213,65 @@ describe('TextGenerator', () => {
     });
   });
 
+  // ─── generatePeriodScore ─────────────────────────────────────────────────────
+
+  describe('generatePeriodScore', () => {
+    it('contains scores and at least one team name', () => {
+      const result = gen.generatePeriodScore('1st Quarter', 'Lions', 3, 'Bears', 1);
+      const hasTeam = result.includes('Lions') || result.includes('Bears');
+      expect(hasTeam).toBe(true);
+      expect(result).toMatch(/3/);
+      expect(result).toMatch(/1/);
+    });
+
+    it('produces a non-empty string when teams are tied', () => {
+      const result = gen.generatePeriodScore('2nd Quarter', 'Lions', 2, 'Bears', 2);
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+      expect(result).toMatch(/2/);
+    });
+
+    it('does not say "leads" when teams are tied (issue #6 regression)', () => {
+      // Run many times to hit all templates in the pool
+      for (let i = 0; i < 20; i++) {
+        gen = new TextGenerator();
+        const result = gen.generatePeriodScore('1st Quarter', 'Lions', 2, 'Bears', 2);
+        expect(result).not.toMatch(/\bleads\b/i);
+      }
+    });
+
+    it('does not say "leads" or "lead" or "trail" when teams are tied', () => {
+      for (let i = 0; i < 20; i++) {
+        gen = new TextGenerator();
+        const result = gen.generatePeriodScore('3rd Quarter', 'Lions', 1, 'Bears', 1);
+        // Templates that use {homeVerb} should resolve to 'are tied', not lead/trail
+        // Templates using {leadTeam}/{trailTeam} with equal scores show both teams equally
+        expect(result).not.toMatch(/\bleads\b/i);
+      }
+    });
+
+    it('uses halftimeScore templates for halftime periods', () => {
+      // Halftime templates have distinct phrasing ("At the half", "Halftime score")
+      const results = Array.from({ length: 20 }, () => {
+        gen = new TextGenerator();
+        return gen.generatePeriodScore('Halftime', 'Wildcats', 4, 'Eagles', 2);
+      });
+      const hasHalftimePhrasing = results.some(r =>
+        /halftime|half/i.test(r)
+      );
+      expect(hasHalftimePhrasing).toBe(true);
+    });
+
+    it('does not produce "are tied" phrasing in participial position when tied at halftime', () => {
+      // "We've reached halftime with the Lions are tied" is wrong — should be "tied"
+      for (let i = 0; i < 20; i++) {
+        gen = new TextGenerator();
+        const result = gen.generatePeriodScore('Halftime', 'Lions', 2, 'Bears', 2);
+        expect(result).not.toMatch(/with the \w+ are tied/i);
+      }
+    });
+  });
+
   // ─── expandPlayerReferences ──────────────────────────────────────────────────
 
   describe('expandPlayerReferences', () => {

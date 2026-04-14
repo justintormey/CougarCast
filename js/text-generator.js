@@ -71,15 +71,15 @@ export class TextGenerator {
       periodScore: [
         "End of the {period}. {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
         "That's the end of the {period}. Score: {leadTeam} {leadScore}, {trailTeam} {trailScore}.",
-        "End of {period}. {homeTeam} leads {leadScore} to {trailScore}." ,
+        "End of {period}. {homeTeam} {homeVerb} {leadScore} to {trailScore}.",
         "The {period} is over. {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
         "After the {period}, it's {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
       ],
       halftimeScore: [
         "At the half, it's the {leadTeam} {leadScore}, the {trailTeam} {trailScore}.",
         "Halftime score: {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
-        "We've reached halftime with the {homeTeam} {homeVerb} {homeScore} to {awayScore}.",
-        "At halftime, your {homeTeam} {homeVerb} {homeScore} to {awayScore}.",
+        "We've reached halftime with the {homeTeam} {homeVerbParticiple} {homeScore} to {awayScore}.",
+        "At halftime, your {homeTeam} {homeVerbParticiple} {homeScore} to {awayScore}.",
       ],
       finalScore: [
         "Final score: {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
@@ -219,12 +219,14 @@ export class TextGenerator {
       trailTeam: tied ? awayTeam : trailing,
       leadScore, trailScore,
       homeVerb: homeLeads ? 'lead' : homeScore < awayScore ? 'trail' : 'are tied',
+      homeVerbParticiple: homeLeads ? 'leading' : homeScore < awayScore ? 'trailing' : 'tied',
     });
   }
 
   generateHalftimeScore(homeTeam, homeScore, awayTeam, awayScore) {
     const leading = homeScore >= awayScore;
     const homeVerb = homeScore > awayScore ? 'lead' : homeScore < awayScore ? 'trail' : 'are tied';
+    const homeVerbParticiple = homeScore > awayScore ? 'leading' : homeScore < awayScore ? 'trailing' : 'tied';
     return this.generate('halftimeScore', {
       homeTeam, homeScore, awayTeam, awayScore,
       leadTeam: leading ? homeTeam : awayTeam,
@@ -232,6 +234,7 @@ export class TextGenerator {
       trailTeam: leading ? awayTeam : homeTeam,
       trailScore: Math.min(homeScore, awayScore),
       homeVerb,
+      homeVerbParticiple,
     });
   }
 

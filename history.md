@@ -100,6 +100,15 @@ Personal team-specific instance: `~/Documents/PROJECTS/CougarCast-Monty` (Cougar
 
 ## Session Log
 
+### 2026-04-14 — Issue #6: periodScore template hardcoded 'leads' in tied-score position
+**Bug:** `periodScore` template index 2 hardcoded `leads`, producing *"End of 1st Quarter. Lions leads 2 to 2."* when scores were equal. Same bug class as issue #4 (halftimeScore tied-score fix). Additionally, two `halftimeScore` templates used `{homeVerb}` in a participial-phrase context, producing the grammatically broken *"We've reached halftime with the Lions are tied 2 to 2."*
+
+**Fix:**
+- Replaced `leads` with `{homeVerb}` in `periodScore` template index 2.
+- Added `homeVerbParticiple` field (`'leading'`/`'trailing'`/`'tied'`) in both `generatePeriodScore` and `generateHalftimeScore`.
+- Updated two `halftimeScore` participial templates to use `{homeVerbParticiple}` instead of `{homeVerb}`.
+- Added 6 new `generatePeriodScore` tests covering tied-score output, halftime routing, and the grammatical regression — 59 total tests, all passing.
+
 ### 2026-04-14 — Issue #5: Walkup music stops on all PLAY presses
 **Bug:** Walkup music only stopped when replaced by goal horn or timeout (both call `_playBlob()` → `stopMusic()`). Non-scoring plays (penalty, infraction, custom) fired no music callback, so walkup looped indefinitely after PLAY.
 
