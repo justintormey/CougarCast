@@ -42,6 +42,18 @@ One device. One stereo Y-splitter cable. Done.
 - **Preview before broadcast** — listen on the left/booth channel before sending to PA
 - **Dynamic score announcements** — check "Include current score" and the text auto-generates from the live score every time
 
+### Period Controls & Score Reporting
+- **Period strip** — navigate between game periods/quarters with back/forward chips
+- **Auto score reporting** — generates natural-language score updates at period breaks ("At the half, the Cougars lead 5 to 3...")
+- **Custom segments** — override the preset segment list in Settings for any sport format
+
+### Music Cues
+- **Goal horn** — plays automatically when a GOAL announcement is broadcast
+- **Timeout music** — ambient music during timeouts, auto-stops on next PLAY
+- **Player walkup songs** — assign a song to any player; plays when they're selected
+- **All cues route to PA** (right channel) via Web Audio stereo panning
+- **IndexedDB storage** — music files stored locally in the browser (too large for localStorage)
+
 ### Smart Pronunciation
 Every player has a **"Say as..."** field. If ElevenLabs butchers a name, type the phonetic spelling:
 
@@ -169,12 +181,13 @@ Select your sport in Settings and the app auto-configures:
 
 ### Data Persistence
 
-All data is stored in your browser's **localStorage**:
-
+Game state is stored in your browser's **localStorage**:
 - Team names, colors, rosters
 - Announcements and their order
 - ElevenLabs API key and voice selection
 - Score (resets on new game setup)
+
+Music files (goal horn, walkup songs) are stored in **IndexedDB** — too large for localStorage.
 
 Use **Export Game Data** to save a JSON backup. **Import** to restore or share setups between devices.
 
@@ -188,23 +201,28 @@ See `data/sample-game.json` for the expected JSON structure.
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | Vanilla HTML/CSS/JS (ES Modules) |
-| TTS | ElevenLabs API (pluggable provider interface) |
-| Text Generation | Template pools with randomized phrasing |
-| Audio Routing | Web Audio API (StereoPannerNode) |
-| Storage | localStorage + JSON import/export |
+| Frontend | Vanilla HTML/CSS/JS (ES Modules) — zero dependencies, no build step |
+| TTS | ElevenLabs API (pluggable provider interface via `tts-provider.js`) |
+| Text Generation | Template pools (3–6 per event) with recency avoidance — no LLM call per play |
+| Audio Routing | Web Audio API (StereoPannerNode) — stereo L/R channel separation |
+| Game State | localStorage + JSON import/export |
+| Music Storage | IndexedDB (`audio-storage.js`) — blobs too large for localStorage |
+| Testing | Vitest — 53 tests across TextGenerator, Storage, and RosterManager |
 
 ---
 
 ## Roadmap
 
-- [ ] Native iOS app — better offline support, native audio routing
-- [ ] Claude API integration — context-aware commentary instead of templates
-- [ ] Music cues — short clips for hype moments, goal horns
-- [ ] Playlist integration — Spotify/Apple Music for pre-game and halftime
+- [x] ~~Music cues — goal horns, timeout music, player walkups~~ *(shipped v0.1.0)*
+- [x] ~~Period controls and score reporting~~ *(shipped v0.1.0)*
+- [x] ~~Multi-sport support (7 sports + custom)~~ *(shipped v0.0.1)*
+- [ ] Sport configuration screen — per-sport action buttons, period structure editor
+- [ ] Playlist integration — Spotify/Apple Music for pre-game and halftime atmosphere
 - [ ] Two-device mode — controller tablet + dedicated PA player
+- [ ] LLM integration — context-aware commentary that adapts to game flow
 - [ ] Voice cloning — clone the retiring announcer's voice (with permission!)
 - [ ] Live stats feed — auto-update from scoring systems
+- [ ] Native iOS app — better offline support, native audio routing
 
 ---
 
