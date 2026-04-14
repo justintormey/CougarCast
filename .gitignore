@@ -5,3 +5,6 @@ data/
 *.game.json
 *-vs-*.json
 node_modules/
+
+# Local deploy config and PII (never commit)
+.local/
