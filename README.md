@@ -1,10 +1,10 @@
-# AIAnnounceR
+# CougarCast
 
 **The AI sports announcer that never gets nervous.**
 
-AIAnnounceR is an AI-powered live sports announcing system that turns any parent with a tablet into a stadium announcer. Built for high school lacrosse, but ready for any sport.
+CougarCast is an AI-powered live sports announcing system that turns any parent with a tablet into a stadium announcer. Built for high school lacrosse, but ready for any sport.
 
-> *"Not everyone is comfortable announcing live to the whole stadium. So we built AIAnnounceR — tap the player, tap the action, and let AI do the talking."*
+> *"Not everyone is comfortable announcing live to the whole stadium. So we built CougarCast — tap the player, tap the action, and let AI do the talking."*
 
 ---
 
@@ -18,7 +18,7 @@ That's it. The operator taps players and events on the dashboard, the system gen
 
 ### The Stereo Trick
 
-AIAnnounceR uses **stereo channel separation** for zero-hardware-overhead booth monitoring:
+CougarCast uses **stereo channel separation** for zero-hardware-overhead booth monitoring:
 
 - **Left channel** → Booth headphones (Preview)
 - **Right channel** → PA system (Play)
@@ -101,7 +101,7 @@ Select your sport in Settings and the app auto-configures:
 
 1. Create an account at [elevenlabs.io](https://elevenlabs.io)
 2. Go to **Profile** → copy your **API Key**
-3. In AIAnnounceR Settings, paste the key and click the refresh button next to Voice
+3. In CougarCast Settings, paste the key and click the refresh button next to Voice
 4. Select a voice — recommended voices for sports announcing:
    - **Daniel** — Steady Broadcaster (great default)
    - **Adam** — Dominant, Firm
@@ -112,7 +112,7 @@ Select your sport in Settings and the app auto-configures:
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌──────────┐
 │   Tablet    │────▶│ Stereo Y-Splitter │────▶│ PA Input │
-│(AIAnnounceR)│     │                  │     │ (Right)  │
+│(CougarCast)│     │                  │     │ (Right)  │
 └─────────────┘     │                  │     └──────────┘
                     │                  │     ┌──────────┐
                     │                  │────▶│Headphones│
