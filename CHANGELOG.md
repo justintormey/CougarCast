@@ -11,6 +11,20 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.2.0] — 2026-04-14
+
+### Added
+- Local deployment via Half Bakery `deployer.py` — replaces GitHub Actions
+- `.local/` directory pattern for PII (rosters) and deploy config (gitignored)
+- Game file generator script for creating opponent matchups
+
+### Changed
+- Deployment moved from GitHub Actions to Half Bakery local deployer
+- Demo URL changed from `/mike2/` to `/cougarcast/`
+- CougarCast-Monty repo archived — single repo for all code
+
+---
+
 ## [0.1.0] — 2026-04-13
 
 ### Added
@@ -56,6 +70,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - localStorage persistence with JSON import/export
 - Sport presets for 7 sports (lacrosse, basketball, football, soccer, hockey, baseball, softball)
 
-[Unreleased]: https://github.com/justintormey/CougarCast/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/justintormey/CougarCast/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/justintormey/CougarCast/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/justintormey/CougarCast/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/justintormey/CougarCast/releases/tag/v0.0.1
