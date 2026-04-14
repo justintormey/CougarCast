@@ -1,11 +1,11 @@
-# AIAnnounceR-App — Project History
+# CougarCast — Project History
 
 ## Project Overview
 
 AI-powered live sports announcing system. The operator taps a player and an action on a tablet; the system generates a varied natural-language announcement, converts it to speech via ElevenLabs, and routes audio to the PA system through stereo channel separation. Originally built for high school lacrosse but ships with presets for 7 sports.
 
-Public open-source reference project at `~/Documents/PROJECTS/AIAnnounceR-App`.  
-Personal team-specific instance: `~/Documents/PROJECTS/AIAnnounceR-Monty` (Mike 2.0, with real roster data — keep out of public repo).
+Public open-source reference project at `~/Documents/PROJECTS/CougarCast`.  
+Personal team-specific instance: `~/Documents/PROJECTS/CougarCast-Monty` (CougarCast, with real roster data — keep out of public repo).
 
 ---
 
@@ -64,7 +64,7 @@ Personal team-specific instance: `~/Documents/PROJECTS/AIAnnounceR-Monty` (Mike 
 
 ## Important Notes
 
-- **Roster data**: Never commit `AIAnnounceR-Monty` roster data (real players, minors) to the public repo.
+- **Roster data**: Never commit `CougarCast-Monty` roster data (real players, minors) to the public repo.
 - **API key**: ElevenLabs key stored in `localStorage`, never sent to any server except ElevenLabs directly.
 - **Deployment**: `index.html` served as a static file — no server-side code anywhere in the stack.
 

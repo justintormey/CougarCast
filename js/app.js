@@ -1,4 +1,4 @@
-// AInnouncR - Mike 2.0
+// CougarCast
 // Main app initialization, tab routing, period management, sport config
 
 import { Storage } from './storage.js';
