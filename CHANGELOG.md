@@ -25,7 +25,9 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `history.md` project history document
 
 ### Fixed
-- Walkup music now stops on every PLAY press (previously only stopped on goal horn or timeout)
+- `periodScore` template index 2 hardcoded "leads" instead of a dynamic verb, producing incorrect "Lions leads 2 to 2" on tied scores (issue #6)
+- Two `halftimeScore` participial templates used `{homeVerb}` in a participial context, producing grammatically broken "with the Lions are tied 2 to 2"; replaced with `{homeVerbParticiple}` (issue #6)
+- Walkup music now stops on every PLAY press (previously only stopped on goal horn or timeout; issue #5)
 - Tied-score announcement templates incorrectly said "leading" or "wins" (issue #4)
 - Five moderate CVEs resolved by upgrading Vitest 2 → 3 (issue #3)
 
