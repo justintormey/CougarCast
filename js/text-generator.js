@@ -67,6 +67,14 @@ export class TextGenerator {
         "And that's the end of the {period}.",
         "The {period} comes to a close.",
       ],
+      // Mid-game period score — for quarter and period breaks
+      periodScore: [
+        "End of the {period}. {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
+        "That's the end of the {period}. Score: {leadTeam} {leadScore}, {trailTeam} {trailScore}.",
+        "End of {period}. {homeTeam} leads {leadScore} to {trailScore}." ,
+        "The {period} is over. {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
+        "After the {period}, it's {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
+      ],
       halftimeScore: [
         "At the half, it's the {leadTeam} {leadScore}, the {trailTeam} {trailScore}.",
         "Halftime score: {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
@@ -188,6 +196,29 @@ export class TextGenerator {
     return this.generate(type, {
       player: { number: player.number, name: this.pronounceName(player) },
       team: teamName,
+    });
+  }
+
+  // Generate a score announcement for any period/quarter break
+  generatePeriodScore(periodName, homeTeam, homeScore, awayTeam, awayScore) {
+    const tied = homeScore === awayScore;
+    const homeLeads = homeScore > awayScore;
+    const leading = homeLeads ? homeTeam : awayTeam;
+    const trailing = homeLeads ? awayTeam : homeTeam;
+    const leadScore = Math.max(homeScore, awayScore);
+    const trailScore = Math.min(homeScore, awayScore);
+
+    // If it's a halftime-named period or a tie, use different phrasing
+    const isHalf = /half/i.test(periodName);
+    const templateType = isHalf ? 'halftimeScore' : 'periodScore';
+
+    return this.generate(templateType, {
+      period: periodName,
+      homeTeam, homeScore, awayTeam, awayScore,
+      leadTeam: tied ? homeTeam : leading,
+      trailTeam: tied ? awayTeam : trailing,
+      leadScore, trailScore,
+      homeVerb: homeLeads ? 'lead' : homeScore < awayScore ? 'trail' : 'are tied',
     });
   }
 

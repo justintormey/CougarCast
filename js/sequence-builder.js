@@ -13,6 +13,11 @@ export class SequenceBuilder {
     this.generatedAudio = null;
     this.generatedEnergy = 'neutral';
     this.isGenerating = false;
+    this.lastInterpretation = null;  // captured before clear for music callbacks
+
+    // Optional music callbacks (set by App after init)
+    this.onGoalScored = null;   // (team: string) => void
+    this.onTimeoutCalled = null; // () => void
 
     this.setupEventListeners();
   }
@@ -162,6 +167,7 @@ export class SequenceBuilder {
     const interpretation = this.interpret();
     if (!interpretation) return;
 
+    this.lastInterpretation = interpretation; // save before chips are cleared
     this.generatedText = interpretation.text;
     this.generatedEnergy = interpretation.energy || 'neutral';
     this.generatedAudio = null;
@@ -300,11 +306,23 @@ export class SequenceBuilder {
   }
 
   async play() {
+    const interp = this.lastInterpretation; // capture before clear
     const audio = await this.generateAudio();
     if (audio) {
       this.audioManager.play(audio);
       this.applyGameEffect();
+      this._triggerMusicCue(interp);
       this.clear();
+    }
+  }
+
+  _triggerMusicCue(interp) {
+    if (!interp) return;
+    if (interp.type === 'goal' && this.onGoalScored) {
+      this.onGoalScored(interp.scorer?.team);
+    }
+    if (interp.type === 'timeout' && this.onTimeoutCalled) {
+      this.onTimeoutCalled();
     }
   }
 
@@ -331,6 +349,7 @@ export class SequenceBuilder {
     this.generatedText = '';
     this.generatedEnergy = 'neutral';
     this.generatedAudio = null;
+    this.lastInterpretation = null;
     this.renderChips();
     this.updateAudioBar();
     document.getElementById('custom-input-bar').style.display = 'none';

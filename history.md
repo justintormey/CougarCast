@@ -50,12 +50,10 @@ Personal team-specific instance: `~/Documents/PROJECTS/AIAnnounceR-Monty` (Mike 
 ## Unfinished Work
 
 ### Immediate Next Steps
-- UI modernization (dashboard look and feel — per project vision)
-- Multi-sport configuration screen (quarters/halftime, period lengths, sport-specific events)
-- Score reporting — automatic quarter/half score announcements
+- Live demo at `demo.justintormey.com/mike2/`
 
 ### Future Enhancements
-- Music cues — walkup music, timeout music, goal horns, atmosphere sounds
+- Native iOS app — better offline support, native audio routing
 - Native iOS app — better offline support, native audio routing
 - Claude API integration — context-aware commentary replacing templates
 - Two-device mode — controller tablet + dedicated PA player
@@ -101,6 +99,27 @@ Personal team-specific instance: `~/Documents/PROJECTS/AIAnnounceR-Monty` (Mike 
 ---
 
 ## Session Log
+
+### 2026-04-13 — Issue #2: UI Modernization + Multi-Sport Support
+**Work:** Added period strip, music cues (goal horn, timeout, walkup), auto score reporting, sport config enhancements.
+
+**New Files:**
+- `js/audio-storage.js` — IndexedDB wrapper for music blob storage (blobs too large for localStorage).
+- `js/music-manager.js` — Music cue UI (Music tab) + playback (goal horn, timeout, per-player walkup). All cues route to right/PA channel via shared Web Audio context.
+
+**Modified Files:**
+- `js/app.js` — Period tracking (`changePeriod`, `renderPeriodStrip`), score report button (`generateScoreReport`), MusicManager init + wiring, `_syncManagers()` helper, custom segments support, version bump to v0.1.0.
+- `js/sequence-builder.js` — Added `onGoalScored` / `onTimeoutCalled` callbacks; saved `lastInterpretation` before chip clear so music cues trigger correctly after play.
+- `js/text-generator.js` — Added `periodScore` template pool + `generatePeriodScore(periodName, ...)` method reusing `halftimeScore` templates for half-named periods.
+- `index.html` — Period strip (◀ chips ▶ + 📣 score-report), Music tab, sport `segment-editor` container in Settings.
+- `css/style.css` — Period strip, period chips, score-report button, Music tab cards, walkup rows, stop-music button animation, segment preview pills.
+
+**Architecture:**
+- Music stored in IndexedDB (AudioStorage class), independent of localStorage game state.
+- Music routed through `createMediaElementSource` → StereoPannerNode (pan=+1, right=PA) for consistent channel separation.
+- Period is 1-indexed (`gameState.period`); `_activeSegments()` returns custom or preset segment array.
+- Custom sport: `gameState.customSegments[]` overrides preset; cleared when switching back to a preset.
+- Score report loads text into the audio bar rather than auto-playing — operator controls when it airs.
 
 ### 2026-04-13 — Issue #1: Testing + Documentation
 **Work:** Added Vitest test suite and project history.

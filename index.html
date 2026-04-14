@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AInnouncR - Mike 2.0</title>
-  <link rel="stylesheet" href="css/style.css?v=10">
+  <title>AIAnnounceR — Mike 2.0</title>
+  <link rel="stylesheet" href="css/style.css?v=11">
 </head>
 <body>
   <div id="app">
@@ -15,7 +15,7 @@
       </div>
       <div class="header-center">
         <h1 class="app-title">Mike 2.0</h1>
-        <div class="app-version">v0.0.1</div>
+        <div class="app-version">v0.1.0</div>
       </div>
       <div class="header-right"></div>
     </header>
@@ -37,10 +37,19 @@
       </span>
     </div>
 
+    <!-- Period Strip (between score bar and tabs) -->
+    <div class="period-strip">
+      <button class="period-nav-btn" id="prev-period" title="Previous period" disabled>&#9664;</button>
+      <div class="period-segments" id="period-segments"></div>
+      <button class="period-nav-btn" id="next-period" title="Next period">&#9654;</button>
+      <button class="score-report-btn" id="score-report-btn" title="Generate score announcement">&#128227;</button>
+    </div>
+
     <!-- Tab Bar -->
     <nav class="tab-bar">
       <button class="tab active" data-tab="game">Game</button>
       <button class="tab" data-tab="announcements">Announcements</button>
+      <button class="tab" data-tab="music">Music</button>
     </nav>
 
     <!-- Game Tab -->
@@ -91,6 +100,11 @@
       </div>
     </div>
 
+    <!-- Music Tab -->
+    <div id="music-tab" class="tab-content">
+      <!-- Content rendered by MusicManager.render() -->
+    </div>
+
     <!-- Settings Modal -->
     <div class="modal-overlay" id="settings-modal" style="display:none;">
       <div class="modal">
@@ -99,6 +113,7 @@
           <button class="modal-close" id="settings-close">&times;</button>
         </div>
         <div class="modal-body">
+
           <!-- API Key -->
           <div class="setting-group">
             <label class="setting-label">ElevenLabs API Key</label>
@@ -116,9 +131,9 @@
             </div>
           </div>
 
-          <!-- Sport Preset -->
-          <div class="setting-group">
-            <label class="setting-label">Sport</label>
+          <!-- Sport Config -->
+          <div class="setting-group setting-group-card">
+            <label class="setting-label">Sport Configuration</label>
             <select id="sport-preset" class="setting-select">
               <option value="lacrosse">Lacrosse</option>
               <option value="field-hockey">Field Hockey</option>
@@ -130,6 +145,8 @@
               <option value="custom">Custom</option>
             </select>
             <div class="setting-hint" id="sport-description"></div>
+            <!-- Segment editor — populated by JS based on selected sport -->
+            <div id="segment-editor" style="margin-top:10px;"></div>
           </div>
 
           <!-- Home Team -->

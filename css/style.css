@@ -109,6 +109,94 @@ body {
 .score.away-score { color: var(--away-color); }
 .score-sep { color: var(--text-muted); margin: 0 4px; }
 
+/* ─── Period Strip ─── */
+.period-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.period-strip::-webkit-scrollbar { display: none; }
+
+.period-nav-btn {
+  background: var(--bg-body);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.period-nav-btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-heading); }
+.period-nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+.period-segments {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.period-segments::-webkit-scrollbar { display: none; }
+
+.period-chip {
+  padding: 5px 12px;
+  border-radius: 50px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--bg-body);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: all var(--transition);
+  letter-spacing: 0.3px;
+}
+
+.period-chip:hover { background: var(--bg-hover); color: var(--text-primary); }
+.period-chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  box-shadow: 0 2px 8px rgba(105, 108, 255, 0.35);
+}
+
+.score-report-btn {
+  background: var(--bg-body);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  width: 34px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.score-report-btn:hover {
+  background: var(--warning-light);
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
 /* ─── Tab Bar ─── */
 .tab-bar {
   display: flex;
@@ -193,8 +281,8 @@ body {
   display: flex;
   flex: 1;
   overflow-y: auto;
-  max-height: calc(100vh - 380px);
-  max-height: calc(100dvh - 380px);
+  max-height: calc(100vh - 425px);
+  max-height: calc(100dvh - 425px);
   margin: 0 12px;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
@@ -857,6 +945,241 @@ body {
   line-height: 1.5;
 }
 
+/* ─── Sport Config — Segment Editor ─── */
+.segments-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.segment-pill {
+  padding: 4px 10px;
+  background: var(--bg-body);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+}
+
+.setting-group-card {
+  background: var(--bg-body);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border-light);
+}
+
+/* ─── Music Tab ─── */
+.music-container {
+  padding: 16px;
+  max-height: calc(100vh - 110px);
+  max-height: calc(100dvh - 110px);
+  overflow-y: auto;
+}
+
+.music-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.music-hint-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+.music-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-light);
+}
+
+.music-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.music-card-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  width: 40px;
+  text-align: center;
+}
+
+.music-card-meta { flex: 1; }
+.music-card-title { font-size: 15px; font-weight: 700; color: var(--text-heading); }
+.music-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.music-status-badge {
+  padding: 4px 10px;
+  border-radius: 50px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.music-status-badge.loaded { background: var(--success-light); color: #56ca00; }
+.music-status-badge.empty { background: var(--bg-body); color: var(--text-muted); }
+.music-status-badge.small { padding: 2px 8px; font-size: 9px; }
+
+.music-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.music-btn {
+  padding: 8px 14px;
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: 0.3px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.music-btn.upload {
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+}
+
+.music-btn.upload:hover { background: var(--primary); color: white; }
+
+.music-btn.preview {
+  background: var(--warning-light);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+}
+
+.music-btn.preview:hover { background: var(--warning); color: white; }
+.music-btn.preview:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.music-btn.clear.danger {
+  background: var(--danger-light);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+.music-btn.clear.danger:hover { background: var(--danger); color: white; }
+.music-btn.clear.danger:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.music-btn.small {
+  padding: 5px 10px;
+  font-size: 11px;
+  min-height: 30px;
+}
+
+.stop-music-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: 0.3px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.stop-music-btn:hover {
+  background: var(--danger-light);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.stop-music-btn.active {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: white;
+  animation: pulse-stop 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-stop {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+/* ─── Walkup Music ─── */
+.walkup-team-block {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+}
+
+.walkup-team-header {
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 11px;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: white;
+}
+
+.walkup-team-header.home { background: var(--home-color); }
+.walkup-team-header.away { background: var(--away-color); }
+
+.walkup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-light);
+  min-height: 48px;
+}
+
+.walkup-row:last-child { border-bottom: none; }
+
+.walkup-number {
+  font-size: 12px;
+  font-weight: 800;
+  min-width: 36px;
+  padding: 3px 8px;
+  border-radius: 50px;
+  text-align: center;
+}
+
+.walkup-number.home { background: rgba(105, 108, 255, 0.1); color: var(--home-color); }
+.walkup-number.away { background: rgba(255, 62, 29, 0.1); color: var(--away-color); }
+
+.walkup-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-heading);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ─── iOS / Touch / Responsive ─── */
 input, select, textarea { font-size: 16px !important; }
 
@@ -866,7 +1189,7 @@ input, select, textarea { font-size: 16px !important; }
 
 /* Tablet */
 @media (min-width: 768px) {
-  .rosters { max-height: calc(100vh - 400px); }
+  .rosters { max-height: calc(100vh - 445px); }
   .action-btn { padding: 12px 24px; font-size: 13px; }
   .player-row { padding: 12px 16px; }
 }

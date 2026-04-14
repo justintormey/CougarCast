@@ -1,5 +1,5 @@
-// AInnouncR - Mike 2.0 v0.0.1
-// Main app initialization and tab routing
+// AInnouncR - Mike 2.0
+// Main app initialization, tab routing, period management, sport config
 
 import { Storage } from './storage.js';
 import { RosterManager } from './roster.js';
@@ -8,6 +8,7 @@ import { TextGenerator } from './text-generator.js';
 import { ElevenLabsTTS } from './tts-elevenlabs.js';
 import { AudioManager } from './audio-manager.js';
 import { AnnouncementsManager } from './announcements.js';
+import { MusicManager } from './music-manager.js';
 
 const SPORT_PRESETS = {
   lacrosse: {
@@ -131,10 +132,15 @@ class App {
     this.rosterManager = null;
     this.sequenceBuilder = null;
     this.announcementsManager = null;
+    this.musicManager = null;
   }
 
   init() {
     this.gameState = this.storage.loadGame();
+
+    // Migrate older game states that lack period field
+    if (this.gameState.period === undefined) this.gameState.period = 1;
+
     this.rosterManager = new RosterManager(this.gameState, this.storage, () => this.onGameStateChanged());
     this.sequenceBuilder = new SequenceBuilder(
       this.gameState,
@@ -149,17 +155,30 @@ class App {
       this.tts,
       this.audioManager
     );
+    this.musicManager = new MusicManager(this.audioManager, this.gameState);
 
-    // Wire roster player taps to sequence builder
+    // Wire music callbacks into the sequence builder
+    this.sequenceBuilder.onGoalScored = () => this.musicManager.playGoalHorn();
+    this.sequenceBuilder.onTimeoutCalled = () => this.musicManager.playTimeout();
+
+    // Wire roster player taps: play walkup then route to sequence builder
     this.rosterManager.onPlayerSelect = (player, team) => {
+      this.musicManager.playWalkup(team, player.number);
       this.sequenceBuilder.handlePlayerSelect(player, team);
     };
 
+    // Stop music when a non-scoring play is completed (clear pressed)
+    // The PLAY button already auto-stops via MusicManager integration in sequence
+
     this.setupTabs();
     this.setupSettings();
+    this.setupPeriodControls();
     this.renderGame();
     this.announcementsManager.render();
+    this.musicManager.init();
   }
+
+  // ─── Tabs ────────────────────────────────────────────────────────────────
 
   setupTabs() {
     document.querySelectorAll('.tab').forEach(tab => {
@@ -167,10 +186,114 @@ class App {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         tab.classList.add('active');
-        document.getElementById(`${tab.dataset.tab}-tab`).classList.add('active');
+        const target = document.getElementById(`${tab.dataset.tab}-tab`);
+        if (target) target.classList.add('active');
+
+        // Refresh music tab when switching to it (cue status may have changed)
+        if (tab.dataset.tab === 'music') {
+          this.musicManager.render();
+        }
       });
     });
   }
+
+  // ─── Period Controls ─────────────────────────────────────────────────────
+
+  setupPeriodControls() {
+    document.getElementById('prev-period')?.addEventListener('click', () => this.changePeriod(-1));
+    document.getElementById('next-period')?.addEventListener('click', () => this.changePeriod(1));
+    document.getElementById('score-report-btn')?.addEventListener('click', () => this.generateScoreReport());
+  }
+
+  changePeriod(delta) {
+    const segments = this._activeSegments();
+    const maxPeriod = segments.length;
+    const newPeriod = Math.max(1, Math.min(maxPeriod, this.gameState.period + delta));
+    if (newPeriod === this.gameState.period) return;
+    this.gameState.period = newPeriod;
+    this.storage.saveGame(this.gameState);
+    this.renderPeriodStrip();
+  }
+
+  generateScoreReport() {
+    const segments = this._activeSegments();
+    const periodIdx = Math.max(0, this.gameState.period - 1);
+    const periodName = segments[periodIdx] || `Period ${this.gameState.period}`;
+    const isFinal = this.gameState.period >= segments.length;
+
+    const home = this.gameState.homeTeam;
+    const away = this.gameState.awayTeam;
+    const hs = this.gameState.homeScore;
+    const as = this.gameState.awayScore;
+    const homeName = home.mascot || home.name || 'Home';
+    const awayName = away.mascot || away.name || 'Visiting';
+
+    let text;
+    if (isFinal) {
+      text = this.textGenerator.generateFinalScore(homeName, hs, awayName, as);
+    } else {
+      text = this.textGenerator.generatePeriodScore(periodName, homeName, hs, awayName, as);
+    }
+
+    // Load the generated text into the audio bar
+    this.sequenceBuilder.generatedText = text;
+    this.sequenceBuilder.generatedEnergy = 'neutral';
+    this.sequenceBuilder.generatedAudio = null;
+    this.sequenceBuilder.updateAudioBar();
+
+    // Switch to Game tab so operator can see and play the announcement
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    const gameTab = document.querySelector('.tab[data-tab="game"]');
+    const gameContent = document.getElementById('game-tab');
+    if (gameTab) gameTab.classList.add('active');
+    if (gameContent) gameContent.classList.add('active');
+  }
+
+  // Returns the active segments array for the current sport
+  _activeSegments() {
+    const sport = this.gameState.sport || 'lacrosse';
+    // Custom segments stored on gameState take precedence
+    if (this.gameState.customSegments?.length) return this.gameState.customSegments;
+    return SPORT_PRESETS[sport]?.segments || SPORT_PRESETS.lacrosse.segments;
+  }
+
+  renderPeriodStrip() {
+    const container = document.getElementById('period-segments');
+    if (!container) return;
+
+    const segments = this._activeSegments();
+    const current = this.gameState.period || 1;
+
+    container.innerHTML = segments.map((seg, i) => {
+      const active = i + 1 === current ? ' active' : '';
+      return `<button class="period-chip${active}" data-period="${i + 1}">${seg}</button>`;
+    }).join('');
+
+    // Click a chip to jump to that period
+    container.querySelectorAll('.period-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        this.gameState.period = parseInt(chip.dataset.period);
+        this.storage.saveGame(this.gameState);
+        this.renderPeriodStrip();
+      });
+    });
+
+    // Update nav button states
+    const prevBtn = document.getElementById('prev-period');
+    const nextBtn = document.getElementById('next-period');
+    if (prevBtn) prevBtn.disabled = current <= 1;
+    if (nextBtn) nextBtn.disabled = current >= segments.length;
+
+    // Update score report button label for final period
+    const reportBtn = document.getElementById('score-report-btn');
+    if (reportBtn) {
+      const isFinal = current >= segments.length;
+      reportBtn.title = isFinal ? 'Generate final score announcement' : `Generate ${segments[current - 1] || 'period'} score announcement`;
+    }
+  }
+
+  // ─── Settings ────────────────────────────────────────────────────────────
 
   setupSettings() {
     const modal = document.getElementById('settings-modal');
@@ -197,10 +320,12 @@ class App {
     // Voice refresh
     document.getElementById('refresh-voices').addEventListener('click', () => this.loadVoices());
 
-    // Sport preset selector
+    // Sport preset selector — show/hide custom segments editor
     document.getElementById('sport-preset').addEventListener('change', (e) => {
-      const preset = SPORT_PRESETS[e.target.value];
+      const sport = e.target.value;
+      const preset = SPORT_PRESETS[sport];
       document.getElementById('sport-description').textContent = preset?.description || '';
+      this._renderSegmentEditor(sport, preset?.segments);
     });
 
     // Import/Export
@@ -213,9 +338,7 @@ class App {
       if (confirm('Reset all data to sample game? This cannot be undone.')) {
         this.storage.clear();
         this.gameState = this.storage.loadGame();
-        this.rosterManager.setGameState(this.gameState);
-        this.sequenceBuilder.setGameState(this.gameState);
-        this.announcementsManager.setGameState(this.gameState);
+        this._syncManagers();
         this.renderGame();
         this.announcementsManager.render();
         this.populateSettings();
@@ -233,6 +356,32 @@ class App {
     });
   }
 
+  _renderSegmentEditor(sport, defaultSegments) {
+    const editorContainer = document.getElementById('segment-editor');
+    if (!editorContainer) return;
+
+    if (sport === 'custom') {
+      // Custom: editable textarea of comma-separated segment names
+      const saved = this.gameState.customSegments?.join(', ') || '';
+      editorContainer.innerHTML = `
+        <label class="setting-label">Custom Period/Segment Names</label>
+        <input type="text" id="custom-segments" class="setting-input"
+          placeholder="e.g. Q1, Q2, Q3, Q4, OT"
+          value="${saved}">
+        <div class="setting-hint">Comma-separated list of period/quarter names for the period strip.</div>
+      `;
+      document.getElementById('custom-segments').addEventListener('change', (e) => {
+        this.gameState.customSegments = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+      });
+    } else {
+      // Preset: show the segments read-only
+      const segs = defaultSegments || [];
+      editorContainer.innerHTML = segs.length
+        ? `<div class="segments-preview">${segs.map(s => `<span class="segment-pill">${s}</span>`).join('')}</div>`
+        : '';
+    }
+  }
+
   populateSettings() {
     document.getElementById('elevenlabs-key').value = this.storage.getApiKey() || '';
     document.getElementById('home-name').value = this.gameState.homeTeam.name || '';
@@ -243,9 +392,12 @@ class App {
     document.getElementById('away-mascot').value = this.gameState.awayTeam.mascot || '';
     document.getElementById('away-color').value = this.gameState.awayTeam.color || '#b71c1c';
     document.getElementById('away-energy').value = this.gameState.awayTeam.energy || 'neutral';
-    document.getElementById('sport-preset').value = this.gameState.sport || 'lacrosse';
-    const preset = SPORT_PRESETS[this.gameState.sport || 'lacrosse'];
+
+    const sport = this.gameState.sport || 'lacrosse';
+    document.getElementById('sport-preset').value = sport;
+    const preset = SPORT_PRESETS[sport];
     document.getElementById('sport-description').textContent = preset?.description || '';
+    this._renderSegmentEditor(sport, preset?.segments);
 
     this.renderRosterEdit();
 
@@ -302,8 +454,20 @@ class App {
     this.storage.setApiKey(document.getElementById('elevenlabs-key').value.trim());
     this.tts.setApiKey(this.storage.getApiKey());
 
-    // Save sport
-    this.gameState.sport = document.getElementById('sport-preset').value;
+    // Save sport and segments
+    const sport = document.getElementById('sport-preset').value;
+    this.gameState.sport = sport;
+
+    // Save custom segments if editing custom sport
+    if (sport === 'custom') {
+      const customInput = document.getElementById('custom-segments');
+      if (customInput) {
+        this.gameState.customSegments = customInput.value.split(',').map(s => s.trim()).filter(Boolean);
+      }
+    } else {
+      // Clear custom segments when switching to a preset
+      delete this.gameState.customSegments;
+    }
 
     this.gameState.homeTeam.name = document.getElementById('home-name').value.trim();
     this.gameState.homeTeam.mascot = document.getElementById('home-mascot').value.trim();
@@ -314,13 +478,11 @@ class App {
     this.gameState.awayTeam.color = document.getElementById('away-color').value;
     this.gameState.awayTeam.energy = document.getElementById('away-energy').value;
 
-    // Parse game segments
     const selectedVoice = document.getElementById('voice-select').value;
     const previousVoice = this.storage.getVoiceId();
     if (selectedVoice) {
       this.storage.setVoiceId(selectedVoice);
       this.tts.setVoice(selectedVoice);
-      // Clear pre-rendered audio if voice changed
       if (previousVoice && previousVoice !== selectedVoice) {
         this.announcementsManager.clearAudioCache();
       }
@@ -330,6 +492,7 @@ class App {
     this.applyTeamColors();
     this.renderGame();
     this.announcementsManager.render();
+    this.musicManager.setGameState(this.gameState);
   }
 
   async loadVoices() {
@@ -360,7 +523,6 @@ class App {
     root.style.setProperty('--home-color', this.gameState.homeTeam.color);
     root.style.setProperty('--away-color', this.gameState.awayTeam.color);
 
-    // Generate darker shade for headers
     const darken = (hex, amount) => {
       const num = parseInt(hex.slice(1), 16);
       const r = Math.max(0, (num >> 16) - amount);
@@ -373,7 +535,6 @@ class App {
   }
 
   setupScoreAdjust() {
-    // Only bind once — skip if already bound
     if (this._scoreAdjustBound) return;
     this._scoreAdjustBound = true;
 
@@ -402,14 +563,12 @@ class App {
       return `<button class="action-btn" data-action="${a.id}" ${pts} style="background:${a.color};color:${textColor}">${a.label}</button>`;
     }).join('');
 
-    // Re-bind click handlers via sequence builder
     this.sequenceBuilder.bindActionButtons();
   }
 
   renderGame() {
     this.applyTeamColors();
 
-    // Team names
     const homeName = this.gameState.homeTeam.mascot || this.gameState.homeTeam.name || 'Home';
     const awayName = this.gameState.awayTeam.mascot || this.gameState.awayTeam.name || 'Visiting';
 
@@ -418,17 +577,11 @@ class App {
     document.getElementById('home-roster-header').textContent = homeName.toUpperCase();
     document.getElementById('away-roster-header').textContent = awayName.toUpperCase();
 
-    // Scores
     this.updateScoreDisplay();
-
-    // Action buttons (sport-specific)
     this.updateActionButtons();
-
-    // Score adjust buttons
     this.setupScoreAdjust();
-
-    // Rosters
     this.rosterManager.renderRosters();
+    this.renderPeriodStrip();
   }
 
   updateScoreDisplay() {
@@ -439,6 +592,13 @@ class App {
   onGameStateChanged() {
     this.updateScoreDisplay();
     this.storage.saveGame(this.gameState);
+  }
+
+  _syncManagers() {
+    this.rosterManager.setGameState(this.gameState);
+    this.sequenceBuilder.setGameState(this.gameState);
+    this.announcementsManager.setGameState(this.gameState);
+    this.musicManager.setGameState(this.gameState);
   }
 
   exportData() {
@@ -461,10 +621,9 @@ class App {
       try {
         const data = JSON.parse(e.target.result);
         this.gameState = data;
+        if (this.gameState.period === undefined) this.gameState.period = 1;
         this.storage.saveGame(this.gameState);
-        this.rosterManager.setGameState(this.gameState);
-        this.sequenceBuilder.setGameState(this.gameState);
-        this.announcementsManager.setGameState(this.gameState);
+        this._syncManagers();
         this.renderGame();
         this.announcementsManager.render();
         this.populateSettings();
