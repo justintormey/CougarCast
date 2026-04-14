@@ -100,6 +100,12 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 
 ## Session Log
 
+### 2026-04-14 — Issue #4 QA: halftimeScore / finalScore tied-score templates
+
+**QA review result: PASS — all fixes correct, all 59 tests pass.**
+
+Engineering fixed the root cause (hardcoded `leading` in `halftimeScore` template 3, wrong `wins` phrasing in `finalScore` tied-game path). During QA review, a grammar regression was identified: the engineering fix used `{homeVerb}` ('are tied') in a participial-phrase slot; this was corrected to `{homeVerbParticiple}` ('tied') as part of issue #6 before QA completed. Net state: all templates grammatically correct, tied-score assertions cover both `generateHalftimeScore` and `generateFinalScore`, no regressions.
+
 ### 2026-04-14 — Issue #6: periodScore template hardcoded 'leads' in tied-score position
 **Bug:** `periodScore` template index 2 hardcoded `leads`, producing *"End of 1st Quarter. Lions leads 2 to 2."* when scores were equal. Same bug class as issue #4 (halftimeScore tied-score fix). Additionally, two `halftimeScore` templates used `{homeVerb}` in a participial-phrase context, producing the grammatically broken *"We've reached halftime with the Lions are tied 2 to 2."*
 
