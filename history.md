@@ -100,6 +100,15 @@ Personal team-specific instance: `~/Documents/PROJECTS/CougarCast-Monty` (Cougar
 
 ## Session Log
 
+### 2026-04-14 — Issue #5: Walkup music stops on all PLAY presses
+**Bug:** Walkup music only stopped when replaced by goal horn or timeout (both call `_playBlob()` → `stopMusic()`). Non-scoring plays (penalty, infraction, custom) fired no music callback, so walkup looped indefinitely after PLAY.
+
+**Fix:**
+- Added `onPlayFired` callback to `SequenceBuilder` (fires unconditionally before `_triggerMusicCue` in `play()`).
+- Wired in `app.js`: `sequenceBuilder.onPlayFired = () => musicManager.stopMusic()`.
+- Removed stale comment that incorrectly claimed this was already handled.
+- All 53 tests pass.
+
 ### 2026-04-13 — Issue #2: UI Modernization + Multi-Sport Support
 **Work:** Added period strip, music cues (goal horn, timeout, walkup), auto score reporting, sport config enhancements.
 
