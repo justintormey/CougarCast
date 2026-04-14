@@ -173,6 +173,15 @@ describe('TextGenerator', () => {
       expect(result.length).toBeGreaterThan(0);
       expect(result).toMatch(/2/);
     });
+
+    it('does not say "leading" when teams are tied', () => {
+      // Run several times to hit all templates in the pool
+      for (let i = 0; i < 20; i++) {
+        gen = new TextGenerator();
+        const result = gen.generateHalftimeScore('Lions', 2, 'Bears', 2);
+        expect(result).not.toMatch(/\bleading\b/i);
+      }
+    });
   });
 
   // ─── generateFinalScore ──────────────────────────────────────────────────────
@@ -192,6 +201,15 @@ describe('TextGenerator', () => {
       const result = gen.generateFinalScore('Lions', 2, 'Bears', 0);
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('does not say "wins" when the game ends in a tie', () => {
+      // Run several times to hit all templates in the pool
+      for (let i = 0; i < 20; i++) {
+        gen = new TextGenerator();
+        const result = gen.generateFinalScore('Lions', 2, 'Bears', 2);
+        expect(result).not.toMatch(/\bwins\b/i);
+      }
     });
   });
 

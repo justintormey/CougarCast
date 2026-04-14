@@ -78,7 +78,7 @@ export class TextGenerator {
       halftimeScore: [
         "At the half, it's the {leadTeam} {leadScore}, the {trailTeam} {trailScore}.",
         "Halftime score: {homeTeam} {homeScore}, {awayTeam} {awayScore}.",
-        "We've reached halftime with the {homeTeam} leading {homeScore} to {awayScore} over the {awayTeam}.",
+        "We've reached halftime with the {homeTeam} {homeVerb} {homeScore} to {awayScore}.",
         "At halftime, your {homeTeam} {homeVerb} {homeScore} to {awayScore}.",
       ],
       finalScore: [
@@ -237,13 +237,20 @@ export class TextGenerator {
 
   generateFinalScore(homeTeam, homeScore, awayTeam, awayScore) {
     const homeWins = homeScore > awayScore;
-    return this.generate('finalScore', {
+    const tied = homeScore === awayScore;
+    const data = {
       homeTeam, homeScore, awayTeam, awayScore,
       winTeam: homeWins ? homeTeam : awayTeam,
       winScore: Math.max(homeScore, awayScore),
       loseTeam: homeWins ? awayTeam : homeTeam,
       loseScore: Math.min(homeScore, awayScore),
-    });
+    };
+    if (tied) {
+      // Skip templates that imply a winner (contain {winTeam}) — avoids "Lions wins, 2 to 2"
+      const pool = this.templates.finalScore.filter(t => !t.includes('{winTeam}'));
+      return this.generateFromPool('finalScore', pool, data);
+    }
+    return this.generate('finalScore', data);
   }
 
   // Expand jersey numbers in custom text to player names
