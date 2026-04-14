@@ -16,6 +16,7 @@ export class SequenceBuilder {
     this.lastInterpretation = null;  // captured before clear for music callbacks
 
     // Optional music callbacks (set by App after init)
+    this.onPlayFired = null;     // () => void — called on every PLAY press before music cues
     this.onGoalScored = null;   // (team: string) => void
     this.onTimeoutCalled = null; // () => void
 
@@ -311,6 +312,7 @@ export class SequenceBuilder {
     if (audio) {
       this.audioManager.play(audio);
       this.applyGameEffect();
+      if (this.onPlayFired) this.onPlayFired(); // stop walkup (or any active music) on every PLAY
       this._triggerMusicCue(interp);
       this.clear();
     }

@@ -158,6 +158,7 @@ class App {
     this.musicManager = new MusicManager(this.audioManager, this.gameState);
 
     // Wire music callbacks into the sequence builder
+    this.sequenceBuilder.onPlayFired = () => this.musicManager.stopMusic(); // stops walkup on every PLAY
     this.sequenceBuilder.onGoalScored = () => this.musicManager.playGoalHorn();
     this.sequenceBuilder.onTimeoutCalled = () => this.musicManager.playTimeout();
 
@@ -166,9 +167,6 @@ class App {
       this.musicManager.playWalkup(team, player.number);
       this.sequenceBuilder.handlePlayerSelect(player, team);
     };
-
-    // Stop music when a non-scoring play is completed (clear pressed)
-    // The PLAY button already auto-stops via MusicManager integration in sequence
 
     this.setupTabs();
     this.setupSettings();
