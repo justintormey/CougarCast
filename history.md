@@ -50,15 +50,16 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 ## Unfinished Work
 
 ### Immediate Next Steps
-- Live demo at `demo.justintormey.com/cougarcast/`
+- Live demo at `demo.justintormey.com/cougarcast/` — no GitHub Pages or deploy script set up yet; deployment is manual via Half Bakery deployer + CloudFront config in `.local/`
+- Add `escHtml()` utility and apply to all user-data innerHTML renders (action labels, period chips, roster fields) — self-XSS in current local-only deployment, but should be fixed before any hosted/multi-user version (see QA issue #8 finding M1)
+- Add `textColor` input to custom action editor rows — operators cannot currently set dark-text buttons (e.g., yellow button + black text); preset actions like YELLOW CARD use `textColor: '#000'` but the custom editor defaults to white
 
 ### Future Enhancements
-- Native iOS app — better offline support, native audio routing
+- Action editor for preset sports (currently only available for Custom sport type) — operators on e.g. Football who want to add a "SAFETY" button must switch to Custom and lose preset segment defaults
 - Native iOS app — better offline support, native audio routing
 - Claude API integration — context-aware commentary replacing templates
 - Two-device mode — controller tablet + dedicated PA player
 - Voice cloning — clone the retiring announcer's voice (with permission)
-- Live demo at `demo.justintormey.com/cougarcast/`
 
 ---
 
@@ -99,6 +100,23 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 ---
 
 ## Session Log
+
+### 2026-04-17 — Issue #8: Docs — CHANGELOG and history sync
+
+**Work:** Documented all issue #8 deliverables. Updated `CHANGELOG.md` [Unreleased] section (was empty — QA flagged as L1). Fixed stale/duplicate lines in Unfinished Work. Added actionable follow-up items from QA findings M1, L2, L4.
+
+**Files changed:**
+- `CHANGELOG.md` — Added [Unreleased] entries for custom action editor, editable segment editor, auto-period-score, sport badge
+- `history.md` — Removed duplicate "Native iOS" and stale "Live demo" lines from Future Enhancements; added three actionable next steps from QA findings M1/L2/L4
+
+**Status:** Issue #8 epic is fully complete. All features shipped across issues #2 (2026-04-13) and #8 (2026-04-17). 59/59 tests pass.
+
+**QA findings documented as next steps (non-blocking, from QA report on commit 68652b4):**
+- M1: `escHtml()` utility — self-XSS in innerHTML for action labels, period chips, roster fields
+- L2: `textColor` field missing from custom action editor rows
+- L4: Action editor only for Custom sport — preset sports cannot customize actions
+
+---
 
 ### 2026-04-17 — Issue #8: Custom sport action editor
 
