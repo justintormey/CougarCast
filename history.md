@@ -100,6 +100,20 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 
 ## Session Log
 
+### 2026-04-15 — Issue #8: Multi-sport config screen + enhanced score reporting
+
+**Work:** Editable segment editor for all sports, auto-score on period advance, sport badge.
+
+**Modified Files:**
+- `js/app.js` — Replaced `_renderSegmentEditor()` with a fully editable list (add/remove/rename any period for any sport). Added `_bindSegmentEditorEvents()` and `_saveSegmentsFromEditor()` helpers. `changePeriod()` now auto-generates a period score announcement before advancing. `renderSportBadge()` updates the header badge. `_pulseAudioBar()` pulses the audio bar to draw operator attention after auto-populate.
+- `index.html` — Added `#sport-badge` span in header right slot; version bumped to v0.2.0; CSS cache-bust to v=12.
+- `css/style.css` — Added: `.sport-badge` (header pill showing active sport), `.segment-editor-header`, `.segment-edit-list/.row`, `.segment-name-input`, `.segment-remove-btn`, `.segment-add-btn`, `.segment-reset-btn`, `@keyframes pulse-hint` + `.audio-bar.pulse-hint`.
+
+**Architecture:**
+- Segment editing is non-destructive: editing a preset sport's periods stores to `gameState.customSegments`. `_activeSegments()` already checks this first, so period strip and score reports automatically use the custom values. "Reset to defaults" deletes `customSegments` entirely.
+- Auto-score-on-advance reuses the existing `generateScoreReport()` method; it reads `this.gameState.period` before the period is incremented, giving the correct "just-ended" period name. No duplication.
+- All 59 tests pass.
+
 ### 2026-04-14 — Issue #4 QA: halftimeScore / finalScore tied-score templates
 
 **QA review result: PASS — all fixes correct, all 59 tests pass.**

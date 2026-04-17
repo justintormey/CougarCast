@@ -206,11 +206,28 @@ class App {
   changePeriod(delta) {
     const segments = this._activeSegments();
     const maxPeriod = segments.length;
-    const newPeriod = Math.max(1, Math.min(maxPeriod, this.gameState.period + delta));
-    if (newPeriod === this.gameState.period) return;
+    const prevPeriod = this.gameState.period;
+    const newPeriod = Math.max(1, Math.min(maxPeriod, prevPeriod + delta));
+    if (newPeriod === prevPeriod) return;
+
+    // Auto-load a score announcement for the period just completed when advancing forward.
+    // generateScoreReport() reads this.gameState.period (still pointing to the outgoing period).
+    if (delta > 0) {
+      this.generateScoreReport();
+      this._pulseAudioBar();
+    }
+
     this.gameState.period = newPeriod;
     this.storage.saveGame(this.gameState);
     this.renderPeriodStrip();
+  }
+
+  // Brief visual pulse on the audio bar to draw attention after auto-populating
+  _pulseAudioBar() {
+    const bar = document.getElementById('audio-bar');
+    if (!bar) return;
+    bar.classList.add('pulse-hint');
+    setTimeout(() => bar.classList.remove('pulse-hint'), 1200);
   }
 
   generateScoreReport() {
@@ -358,26 +375,83 @@ class App {
     const editorContainer = document.getElementById('segment-editor');
     if (!editorContainer) return;
 
-    if (sport === 'custom') {
-      // Custom: editable textarea of comma-separated segment names
-      const saved = this.gameState.customSegments?.join(', ') || '';
-      editorContainer.innerHTML = `
-        <label class="setting-label">Custom Period/Segment Names</label>
-        <input type="text" id="custom-segments" class="setting-input"
-          placeholder="e.g. Q1, Q2, Q3, Q4, OT"
-          value="${saved}">
-        <div class="setting-hint">Comma-separated list of period/quarter names for the period strip.</div>
+    // Use customSegments if saved, otherwise fall back to the preset default
+    const activeSaved = this.gameState.customSegments?.length ? this.gameState.customSegments : null;
+    const baseSegments = activeSaved || defaultSegments || ['Q1', 'Q2'];
+    const isCustomized = !!activeSaved;
+    const isCustomSport = sport === 'custom';
+
+    const resetBtn = (!isCustomSport && !isCustomized) ? '' : `
+      <button type="button" class="segment-reset-btn" id="segment-reset-btn" title="Restore defaults">
+        ↺ Reset to defaults
+      </button>`;
+
+    const rows = baseSegments.map((seg, i) => `
+      <div class="segment-edit-row" data-index="${i}">
+        <span class="segment-drag-handle">⠿</span>
+        <input type="text" class="segment-name-input" value="${seg.replace(/"/g, '&quot;')}" placeholder="e.g. Q1">
+        <button type="button" class="segment-remove-btn" data-index="${i}" title="Remove">×</button>
+      </div>`).join('');
+
+    editorContainer.innerHTML = `
+      <div class="segment-editor-header">
+        <label class="setting-label" style="margin:0">Periods / Segments</label>
+        ${resetBtn}
+      </div>
+      <div class="segment-edit-list" id="segment-edit-list">${rows}</div>
+      <button type="button" class="segment-add-btn" id="segment-add-btn">+ Add Period</button>
+      <div class="setting-hint">Edit, reorder, or add custom periods. Changes override the preset.</div>
+    `;
+
+    this._bindSegmentEditorEvents(sport, defaultSegments);
+  }
+
+  _bindSegmentEditorEvents(sport, defaultSegments) {
+    const list = document.getElementById('segment-edit-list');
+    const addBtn = document.getElementById('segment-add-btn');
+    const resetBtn = document.getElementById('segment-reset-btn');
+
+    addBtn?.addEventListener('click', () => {
+      const rows = list.querySelectorAll('.segment-edit-row');
+      const idx = rows.length;
+      const div = document.createElement('div');
+      div.className = 'segment-edit-row';
+      div.dataset.index = idx;
+      div.innerHTML = `
+        <span class="segment-drag-handle">⠿</span>
+        <input type="text" class="segment-name-input" value="" placeholder="e.g. OT">
+        <button type="button" class="segment-remove-btn" data-index="${idx}" title="Remove">×</button>
       `;
-      document.getElementById('custom-segments').addEventListener('change', (e) => {
-        this.gameState.customSegments = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-      });
-    } else {
-      // Preset: show the segments read-only
-      const segs = defaultSegments || [];
-      editorContainer.innerHTML = segs.length
-        ? `<div class="segments-preview">${segs.map(s => `<span class="segment-pill">${s}</span>`).join('')}</div>`
-        : '';
-    }
+      list.appendChild(div);
+      div.querySelector('input')?.focus();
+      this._saveSegmentsFromEditor();
+    });
+
+    list?.addEventListener('click', (e) => {
+      if (e.target.classList.contains('segment-remove-btn')) {
+        const row = e.target.closest('.segment-edit-row');
+        if (list.querySelectorAll('.segment-edit-row').length > 1) {
+          row.remove();
+          this._saveSegmentsFromEditor();
+        }
+      }
+    });
+
+    list?.addEventListener('input', () => this._saveSegmentsFromEditor());
+
+    resetBtn?.addEventListener('click', () => {
+      delete this.gameState.customSegments;
+      this._renderSegmentEditor(sport, defaultSegments);
+    });
+  }
+
+  _saveSegmentsFromEditor() {
+    const list = document.getElementById('segment-edit-list');
+    if (!list) return;
+    const segs = Array.from(list.querySelectorAll('.segment-name-input'))
+      .map(i => i.value.trim())
+      .filter(Boolean);
+    if (segs.length) this.gameState.customSegments = segs;
   }
 
   populateSettings() {
@@ -452,20 +526,9 @@ class App {
     this.storage.setApiKey(document.getElementById('elevenlabs-key').value.trim());
     this.tts.setApiKey(this.storage.getApiKey());
 
-    // Save sport and segments
+    // Save sport — customSegments are updated live by the segment editor input listeners
     const sport = document.getElementById('sport-preset').value;
     this.gameState.sport = sport;
-
-    // Save custom segments if editing custom sport
-    if (sport === 'custom') {
-      const customInput = document.getElementById('custom-segments');
-      if (customInput) {
-        this.gameState.customSegments = customInput.value.split(',').map(s => s.trim()).filter(Boolean);
-      }
-    } else {
-      // Clear custom segments when switching to a preset
-      delete this.gameState.customSegments;
-    }
 
     this.gameState.homeTeam.name = document.getElementById('home-name').value.trim();
     this.gameState.homeTeam.mascot = document.getElementById('home-mascot').value.trim();
@@ -564,8 +627,18 @@ class App {
     this.sequenceBuilder.bindActionButtons();
   }
 
+  renderSportBadge() {
+    const badge = document.getElementById('sport-badge');
+    if (!badge) return;
+    const sport = this.gameState.sport || 'lacrosse';
+    const preset = SPORT_PRESETS[sport];
+    const label = preset?.label || 'Custom';
+    badge.textContent = label;
+  }
+
   renderGame() {
     this.applyTeamColors();
+    this.renderSportBadge();
 
     const homeName = this.gameState.homeTeam.mascot || this.gameState.homeTeam.name || 'Home';
     const awayName = this.gameState.awayTeam.mascot || this.gameState.awayTeam.name || 'Visiting';

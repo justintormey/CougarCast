@@ -8,3 +8,5 @@ node_modules/
 
 # Local deploy config and PII (never commit)
 .local/
+.env
+.agent/
