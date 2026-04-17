@@ -340,6 +340,10 @@ class App {
       const sport = e.target.value;
       const preset = SPORT_PRESETS[sport];
       document.getElementById('sport-description').textContent = preset?.description || '';
+      // Clear custom actions when switching away from custom sport
+      if (sport !== 'custom') {
+        delete this.gameState.customActions;
+      }
       this._renderSegmentEditor(sport, preset?.segments);
     });
 
@@ -393,6 +397,9 @@ class App {
         <button type="button" class="segment-remove-btn" data-index="${i}" title="Remove">×</button>
       </div>`).join('');
 
+    // Action editor — only for custom sport
+    const actionEditorHtml = isCustomSport ? this._buildActionEditorHtml() : '';
+
     editorContainer.innerHTML = `
       <div class="segment-editor-header">
         <label class="setting-label" style="margin:0">Periods / Segments</label>
@@ -401,9 +408,41 @@ class App {
       <div class="segment-edit-list" id="segment-edit-list">${rows}</div>
       <button type="button" class="segment-add-btn" id="segment-add-btn">+ Add Period</button>
       <div class="setting-hint">Edit, reorder, or add custom periods. Changes override the preset.</div>
+      ${actionEditorHtml}
     `;
 
     this._bindSegmentEditorEvents(sport, defaultSegments);
+    if (isCustomSport) this._bindActionEditorEvents();
+  }
+
+  _buildActionEditorHtml() {
+    const activeActions = this._activeActions();
+    const rows = activeActions.map((a, i) => `
+      <div class="action-edit-row" data-index="${i}">
+        <input type="text" class="action-label-input" value="${(a.label || '').replace(/"/g, '&quot;')}" placeholder="Label" title="Button label">
+        <input type="text" class="action-id-input" value="${(a.id || '').replace(/"/g, '&quot;')}" placeholder="id" title="Behavior ID: 'goal'/'goal1'/'goal2'/'goal3' = score, 'timeout' = timeout cue, 'custom' = text prompt">
+        <input type="color" class="action-color-input" value="${a.color || '#616161'}" title="Button color">
+        <input type="number" class="action-points-input" value="${a.points || 0}" min="0" max="99" placeholder="pts" title="Points scored (0 = non-scoring)">
+        <button type="button" class="segment-remove-btn action-remove-btn" data-index="${i}" title="Remove action">×</button>
+      </div>`).join('');
+
+    return `
+      <div class="action-editor-section">
+        <div class="segment-editor-header" style="margin-top:16px;">
+          <label class="setting-label" style="margin:0">Action Buttons</label>
+          <button type="button" class="segment-reset-btn" id="action-reset-btn" title="Restore default actions">
+            ↺ Reset actions
+          </button>
+        </div>
+        <div class="action-edit-list" id="action-edit-list">${rows}</div>
+        <button type="button" class="segment-add-btn" id="action-add-btn">+ Add Action</button>
+        <div class="setting-hint">
+          Customize action buttons. <strong>ID</strong> controls behavior:
+          <code>goal</code>/<code>goal1</code>/<code>goal2</code>/<code>goal3</code> = score,
+          <code>timeout</code> = timeout cue, <code>custom</code> = text prompt.
+        </div>
+      </div>
+    `;
   }
 
   _bindSegmentEditorEvents(sport, defaultSegments) {
@@ -452,6 +491,72 @@ class App {
       .map(i => i.value.trim())
       .filter(Boolean);
     if (segs.length) this.gameState.customSegments = segs;
+  }
+
+  _bindActionEditorEvents() {
+    const list = document.getElementById('action-edit-list');
+    const addBtn = document.getElementById('action-add-btn');
+    const resetBtn = document.getElementById('action-reset-btn');
+
+    addBtn?.addEventListener('click', () => {
+      const rows = list.querySelectorAll('.action-edit-row');
+      const idx = rows.length;
+      const div = document.createElement('div');
+      div.className = 'action-edit-row';
+      div.dataset.index = idx;
+      div.innerHTML = `
+        <input type="text" class="action-label-input" value="" placeholder="Label" title="Button label">
+        <input type="text" class="action-id-input" value="custom" placeholder="id" title="Behavior ID">
+        <input type="color" class="action-color-input" value="#616161" title="Button color">
+        <input type="number" class="action-points-input" value="0" min="0" max="99" placeholder="pts" title="Points scored">
+        <button type="button" class="segment-remove-btn action-remove-btn" data-index="${idx}" title="Remove action">×</button>
+      `;
+      list.appendChild(div);
+      div.querySelector('.action-label-input')?.focus();
+      this._saveActionsFromEditor();
+    });
+
+    list?.addEventListener('click', (e) => {
+      if (e.target.classList.contains('action-remove-btn')) {
+        const row = e.target.closest('.action-edit-row');
+        if (list.querySelectorAll('.action-edit-row').length > 1) {
+          row.remove();
+          this._saveActionsFromEditor();
+          this.updateActionButtons();
+        }
+      }
+    });
+
+    list?.addEventListener('input', () => {
+      this._saveActionsFromEditor();
+      this.updateActionButtons();
+    });
+
+    resetBtn?.addEventListener('click', () => {
+      delete this.gameState.customActions;
+      const sport = document.getElementById('sport-preset')?.value || 'custom';
+      this._renderSegmentEditor(sport, SPORT_PRESETS[sport]?.segments);
+      this.updateActionButtons();
+    });
+  }
+
+  _saveActionsFromEditor() {
+    const list = document.getElementById('action-edit-list');
+    if (!list) return;
+    const actions = Array.from(list.querySelectorAll('.action-edit-row')).map(row => ({
+      id: row.querySelector('.action-id-input')?.value.trim() || 'custom',
+      label: row.querySelector('.action-label-input')?.value.trim() || 'ACTION',
+      color: row.querySelector('.action-color-input')?.value || '#616161',
+      points: parseInt(row.querySelector('.action-points-input')?.value) || 0,
+    })).filter(a => a.label);
+    if (actions.length) this.gameState.customActions = actions;
+  }
+
+  // Returns the active actions array for the current sport (respects custom overrides)
+  _activeActions() {
+    const sport = this.gameState.sport || 'lacrosse';
+    if (this.gameState.customActions?.length) return this.gameState.customActions;
+    return SPORT_PRESETS[sport]?.actions || SPORT_PRESETS.lacrosse.actions;
   }
 
   populateSettings() {
@@ -614,16 +719,12 @@ class App {
   }
 
   updateActionButtons() {
-    const sport = this.gameState.sport || 'lacrosse';
-    const preset = SPORT_PRESETS[sport] || SPORT_PRESETS.lacrosse;
     const actionBar = document.querySelector('.action-bar');
-
-    actionBar.innerHTML = preset.actions.map(a => {
+    actionBar.innerHTML = this._activeActions().map(a => {
       const textColor = a.textColor || 'white';
       const pts = a.points ? `data-points="${a.points}"` : '';
       return `<button class="action-btn" data-action="${a.id}" ${pts} style="background:${a.color};color:${textColor}">${a.label}</button>`;
     }).join('');
-
     this.sequenceBuilder.bindActionButtons();
   }
 

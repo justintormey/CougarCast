@@ -100,6 +100,20 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 
 ## Session Log
 
+### 2026-04-17 — Issue #8: Custom sport action editor
+
+**Work:** Added full action button customization for the Custom sport type.
+
+**Modified Files:**
+- `js/app.js` — Added `_activeActions()` (mirrors `_activeSegments()` pattern), updated `updateActionButtons()` to use `_activeActions()`, extended `_renderSegmentEditor()` to append action editor HTML when `sport === 'custom'`, added `_buildActionEditorHtml()`, `_bindActionEditorEvents()`, `_saveActionsFromEditor()`. Sport-preset change listener now deletes `customActions` when switching away from custom.
+- `css/style.css` — Added `.action-editor-section`, `.action-edit-list`, `.action-edit-row`, `.action-label-input`, `.action-id-input`, `.action-color-input`, `.action-points-input` styles.
+
+**Architecture:**
+- Mirrors `_activeSegments()` / `_renderSegmentEditor()` pattern exactly — proven, consistent.
+- `gameState.customActions[]` auto-persists through existing `saveGame()` call in `saveSettings()`.
+- Action IDs drive `SequenceBuilder.interpret()` behavior — reusing `goal`, `timeout`, `custom` IDs gives custom actions the same event behaviors (score increment, timeout music, text prompt) with zero changes to the sequence layer.
+- All 59 tests pass.
+
 ### 2026-04-15 — Issue #8: Multi-sport config screen + enhanced score reporting
 
 **Work:** Editable segment editor for all sports, auto-score on period advance, sport badge.
