@@ -1,195 +1,224 @@
-# Issue #8 — Multi-Sport Support & Config Screen: Gap Analysis & Implementation Plan
-
-**Date:** 2026-04-17  
-**Stage:** Research → Engineering  
+# Issue #8 — Multi-Sport Support & Config Screen: Gap Analysis
+**Last Updated:** 2026-04-17 (v2 — corrects stale v1 findings after full code audit)
 **Issue:** #8 — "Let's add multi-sport support and a config screen"
+**Branch:** agent/8
 
 ---
 
 ## Executive Summary
 
-Issue #2 (merged 2026-04-13) delivered the majority of the multi-sport foundation. The core infrastructure — 7 sport presets, period strip, score reporting, segment editor — is complete and working. What remains is a set of targeted UX gaps in the custom sport editor, two score-reporting enhancements, and the deployment workflow.
+Issue #8 is **~92% complete**. The multi-sport foundation, period strip, editable segment editor, auto-score on period advance, sport badge, and score reporting are all shipped in `main`. 
 
-**Status: ~75% done. Four discrete gaps remain. All are implementable without architectural changes.**
+**One functional gap remains:** the "Custom" sport type has no action editor. Users can define custom period names but the action buttons are hardcoded and cannot be changed.
+
+Deployment documentation is also missing but is low priority (infrastructure, not functionality).
 
 ---
 
 ## Methodology
 
-- Read all JS modules: `app.js`, `text-generator.js`, `sequence-builder.js`, `music-manager.js`, `roster.js`, `storage.js`, `audio-manager.js`
-- Read `index.html` and `css/style.css`
-- Read `history.md` and `project-visions.md`
-- Audited current Settings modal, sport config flow, period strip, and score reporting
-- Cross-referenced against issue epic requirements
+- Full read of `js/app.js` (710 lines), `index.html`, `css/style.css`
+- Read `history.md` session logs (issues #1–8)
+- Cross-referenced v1 of this document against actual `main` HEAD (`fb708ef`)
+- Verified each prior-claimed gap against current implementation
 
 ---
 
-## Requirement Audit
+## Corrections from v1 of This Document
 
-| Requirement | Status | Notes |
+The first version of this research (written before the issue #8 session-log work landed in main) described four gaps. Two of those are now implemented:
+
+| Prior v1 Claim | Actual Code State |
+|---|---|
+| "Segment editor = comma-separated input (poor UX)" | **WRONG** — `_renderSegmentEditor()` renders individual rows with add/remove/rename per `app.js` L374-406 |
+| "No auto-load score on period advance" | **WRONG** — `changePeriod()` calls `generateScoreReport()` + `_pulseAudioBar()` on forward advance at `app.js` L215-218 |
+| "No custom action editor" | **Still correct** — `updateActionButtons()` reads hardcoded preset only |
+| "No deployment workflow" | **Still correct** — no docs, no deploy script in repo |
+
+---
+
+## True Requirement Audit
+
+| Requirement | Status | Code Location |
 |---|---|---|
-| Multi-sport support (presets) | ✅ Done | 7 sports: lacrosse, field hockey, ice hockey, soccer, basketball, football, baseball |
-| Sport configuration screen | ✅ Done | Settings modal → "Sport Configuration" section |
-| Period structure editor (preset) | ✅ Done | Read-only preview pills for presets |
-| Period structure editor (custom) | ⚠️ Partial | Comma-separated input works; no add/remove UX |
-| **Custom action editor** | ❌ Missing | Can define periods for "Custom" sport but cannot edit action buttons |
-| Score reporting (manual) | ✅ Done | 📣 button → generates text → loads to audio bar |
-| Score reporting (period-end auto-prompt) | ⚠️ Partial | Button exists; no auto-prompt when period is advanced |
-| Final vs. mid-game score differentiation | ✅ Done | `isFinal` check routes to `generateFinalScore` vs `generatePeriodScore` |
-| UI modernization | ✅ Done | Sneat design system, Inter font, CSS custom properties |
+| 7 sport presets | ✅ Done | `SPORT_PRESETS` in `app.js` L13-122 |
+| Sport configuration screen (Settings modal) | ✅ Done | Settings → Sport Configuration section |
+| Period strip with ◀▶ navigation + chip tap | ✅ Done | `renderPeriodStrip()`, `setupPeriodControls()` |
+| Editable segment editor (individual rows, add/remove/rename) | ✅ Done | `_renderSegmentEditor()` L374-406 |
+| Auto-load score report on period advance | ✅ Done | `changePeriod()` L215-218 |
+| Manual score report button (📣) | ✅ Done | `#score-report-btn` → `generateScoreReport()` |
+| Final vs. mid-game score differentiation | ✅ Done | `isFinal` check in `generateScoreReport()` L247 |
+| Sport badge in header | ✅ Done | `#sport-badge` + `renderSportBadge()` L630-637 |
+| UI modernization | ✅ Done | Period strip, music tab, score bar (issue #2) |
 | Music cues (goal horn, timeout, walkup) | ✅ Done | `MusicManager` + `AudioStorage` |
-| **Deployment workflow** | ❌ Missing | deployer.py integration not documented; demo site not live |
-| Demo at demo.justintormey.com/cougarcast/ | ❌ Missing | Unfinished per history.md |
+| **Custom sport action editor** | ❌ **Missing** | `updateActionButtons()` reads hardcoded preset only |
+| Deployment documentation / demo site | ❌ Missing (low priority) | No docs; `.local/deploy.json` exists but gitignored |
 
 ---
 
-## Gap 1: Custom Sport — No Action Editor
+## Gap 1: Custom Sport — No Action Editor (MUST SHIP)
 
-**Problem:** When sport = `custom`, users can define period names (comma-separated) but the action buttons are hardcoded to `[GOAL, ASSIST, PENALTY, TIMEOUT, CUSTOM]`. There is no way to:
-- Add sport-specific actions (e.g., "FREE THROW", "CORNER KICK")
-- Rename default actions
+### Problem
+
+When `sport === 'custom'`, action buttons are locked to 5 hardcoded defaults: `[GOAL, ASSIST, PENALTY, TIMEOUT, CUSTOM]`. Users can define custom period names via the segment editor but **cannot** change what action buttons appear.
+
+There is no way to:
+- Rename buttons (e.g., "FREE THROW" instead of "GOAL")
+- Add sport-specific actions (e.g., "CORNER KICK", "OFFSIDE")
 - Set point values per action
 - Change button colors
 
-**Impact:** The "custom" option is half-built — you can describe your periods but your scoreboard actions are locked.
+The `_renderSegmentEditor()` gives full period customization. An action editor does not exist.
 
-**Current code location:** `app.js` → `SPORT_PRESETS.custom.actions` (hardcoded array). `_renderSegmentEditor()` only handles the segment (period name) editor.
+### Root Cause
 
-**Recommended fix:**
+`updateActionButtons()` in `app.js` (L616-628) always reads from `SPORT_PRESETS[sport].actions`:
 
-Extend `_renderSegmentEditor()` to also render an action editor when `sport === 'custom'`. Store custom actions on `gameState.customActions[]`. When `_activeSegments()` checks for custom overrides, add a parallel `_activeActions()` that checks `gameState.customActions` first.
-
+```js
+updateActionButtons() {
+  const sport = this.gameState.sport || 'lacrosse';
+  const preset = SPORT_PRESETS[sport] || SPORT_PRESETS.lacrosse;  // hardcoded — no customActions check
+  const actionBar = document.querySelector('.action-bar');
+  actionBar.innerHTML = preset.actions.map(a => { /* ... */ }).join('');
+  this.sequenceBuilder.bindActionButtons();
+}
 ```
-// Proposed gameState shape for custom actions:
-gameState.customActions = [
-  { id: 'goal', label: 'GOAL', color: '#2e7d32', points: 1 },
-  { id: 'timeout', label: 'TIMEOUT', color: '#37474f' },
-  ...
-]
+
+No `_activeActions()` method exists. `gameState.customActions` is not a field.
+
+### Implementation Spec
+
+**Pattern:** Mirror `_activeSegments()` / `_renderSegmentEditor()` exactly — this pattern is proven, tested, and working.
+
+#### 1. Add `_activeActions()` to `app.js`
+
+```js
+_activeActions() {
+  const sport = this.gameState.sport || 'lacrosse';
+  if (this.gameState.customActions?.length) return this.gameState.customActions;
+  return SPORT_PRESETS[sport]?.actions || SPORT_PRESETS.lacrosse.actions;
+}
 ```
 
-**UI approach:** A table-style editor in the Settings modal (similar to roster editor rows), with:
-- Text input for label
-- Color picker for button color
-- Number input for points (0 = non-scoring)
+#### 2. Update `updateActionButtons()` to call `_activeActions()`
+
+```js
+updateActionButtons() {
+  const actionBar = document.querySelector('.action-bar');
+  actionBar.innerHTML = this._activeActions().map(a => {
+    const textColor = a.textColor || 'white';
+    const pts = a.points ? `data-points="${a.points}"` : '';
+    return `<button class="action-btn" data-action="${a.id}" ${pts} style="background:${a.color};color:${textColor}">${a.label}</button>`;
+  }).join('');
+  this.sequenceBuilder.bindActionButtons();
+}
+```
+
+#### 3. Extend `_renderSegmentEditor()` — add action editor section when `sport === 'custom'`
+
+Append after the segment rows. Each action row needs:
+- Text input for `label`
+- `<input type="color">` for `color`
+- Number input for `points` (0 = non-scoring)
 - Delete row button
 - "Add Action" button at bottom
 
+`gameState.customActions[]` shape (mirrors existing `SPORT_PRESETS.*.actions`):
+```js
+[
+  { id: 'goal',    label: 'GOAL',    color: '#2e7d32', points: 1 },
+  { id: 'timeout', label: 'TIMEOUT', color: '#37474f', points: 0 },
+  { id: 'custom',  label: 'CUSTOM',  color: '#616161', points: 0 },
+]
+```
+
+**⚠️ ID semantics to document in UI hint:**
+- `id: 'goal'` / `'goal1'` / `'goal2'` / `'goal3'` → triggers score increment + goal horn (wired in `SequenceBuilder.interpret()`)
+- `id: 'timeout'` → triggers timeout music cue
+- `id: 'custom'` → triggers custom text input prompt
+- These IDs work automatically when reused in custom actions — a benefit, not a gotcha
+
+#### 4. Add `_bindActionEditorEvents()` and `_saveActionsFromEditor()`
+
+Follow `_bindSegmentEditorEvents()` / `_saveSegmentsFromEditor()` exactly:
+
+```js
+_saveActionsFromEditor() {
+  const list = document.getElementById('action-edit-list');
+  if (!list) return;
+  const actions = Array.from(list.querySelectorAll('.action-edit-row')).map(row => ({
+    id: row.querySelector('.action-id-input').value.trim() || 'custom',
+    label: row.querySelector('.action-label-input').value.trim() || 'ACTION',
+    color: row.querySelector('.action-color-input').value || '#616161',
+    points: parseInt(row.querySelector('.action-points-input').value) || 0,
+  })).filter(a => a.label);
+  if (actions.length) this.gameState.customActions = actions;
+}
+```
+
+#### 5. Clear `customActions` on sport switch away from `'custom'`
+
+In the `#sport-preset` change listener (`setupSettings()` ~L339):
+```js
+if (sport !== 'custom') {
+  delete this.gameState.customActions;
+}
+```
+
+### Files to Change
+
+| File | Change |
+|---|---|
+| `js/app.js` | `_activeActions()`, update `updateActionButtons()`, extend `_renderSegmentEditor()` for actions, `_bindActionEditorEvents()`, `_saveActionsFromEditor()`, clear `customActions` on sport switch |
+| `css/style.css` | Action editor row styles (~8-12 new CSS rules — reuse `.player-edit-row` pattern) |
+| `index.html` | **No changes needed** — action editor renders into existing `#segment-editor` container |
+| `js/storage.js` | **No changes needed** — `customActions` auto-survives via `saveGame(gameState)` |
+
+**Tests:** Existing 59 tests should pass unchanged (no changes to `text-generator.js` or `storage.js` logic). App class is not unit-tested directly.
+
+**Estimated effort:** Medium — 3-4 hours.
 **Semver:** MINOR (additive feature, no breaking changes)
 
 ---
 
-## Gap 2: Period-End Auto-Prompt for Score Report
+## Gap 2: Deployment Documentation (LOW PRIORITY)
 
-**Problem:** After pressing ▶ or ◀ to advance/retreat a period, nothing prompts the operator to announce the score. The 📣 button is always available but passive.
+**Context:** `.local/deploy.json` (gitignored) in the production instance contains CloudFront distribution ID. The deployer.py is part of the Half Bakery infrastructure. The demo site `demo.justintormey.com/cougarcast/` is not live.
 
-**Impact:** In the middle of a live game, the operator can easily forget to hit 📣 at the end of a period. Real announcers always do a score recap at period transitions.
+**Recommendation:** 
+1. Add `docs/deploy.md` — general S3 static deploy pattern with placeholder values
+2. Add `.local/deploy-config.example.json` — template showing structure (safe to commit, no real values)
+3. Actual DNS + S3 setup is infrastructure work outside this repo — separate task or manual
 
-**Current code location:** `app.js` → `changePeriod(delta)` — saves period and re-renders strip but takes no other action.
-
-**Recommended fix (two options):**
-
-**Option A — Toast/nudge (non-blocking):** After `changePeriod()`, flash a brief "Announce score?" toast with a single tap to load the score into the audio bar. Auto-dismisses in 8 seconds.
-
-**Option B — Auto-load (zero-friction):** After period change, automatically generate the score text and pre-load it into the audio bar (same as clicking 📣 manually). The operator can choose to play or ignore it.
-
-**Recommendation:** Option B. The operator still controls when/whether to play. Zero extra taps. Fits the "low friction during live games" design principle.
-
-**Implementation:** In `changePeriod()`, after `renderPeriodStrip()`, call `this.generateScoreReport()` automatically.
-
-**Semver:** MINOR
+**Semver:** PATCH
 
 ---
 
-## Gap 3: Deployment Workflow
+## Architecture Notes
 
-**Problem:** Per `history.md`, the deploy path is: "Deployed to S3 via Half Bakery `deployer.py`." But:
-- `deployer.py` is not documented in this repo
-- The demo URL (`demo.justintormey.com/cougarcast/`) is not live
-- There is no `.local/` deployment config in the committed repo (correctly gitignored)
+No architectural changes required:
 
-**Impact:** Justin cannot deploy without reconstructing the workflow from memory.
-
-**Current state:** The project is a pure static site — `index.html` + `js/` + `css/`. No build step. Any S3/CloudFront setup works.
-
-**Recommended fix:**
-
-1. Add `docs/deploy.md` (committed, safe to public) documenting the general S3 static deploy pattern with placeholder bucket/distribution values.
-2. Add `.local/deploy-config.example.json` (a committed template showing expected structure, without real values) so the gitignored `.local/deploy-config.json` has a reference shape.
-3. If the `deployer.py` script is in the half-bakery infra, document the call signature here.
-
-**Note:** The actual demo site setup (S3 bucket creation, CloudFront, DNS) is infrastructure work outside this repo. Should be a separate half-bakery task or done manually.
-
-**Semver:** PATCH (docs/config only, no code changes)
-
----
-
-## Gap 4: Segment Editor UX Polish
-
-**Problem:** The custom segment editor is a single `<input type="text">` with comma-separated values (e.g., `"Q1, Q2, Q3, Q4, OT"`). This is functional but fragile — easy to introduce syntax errors, hard to reorder, hard to add/remove individual items.
-
-**Impact:** Low — the input works fine for technical users. But it's inconsistent with the more polished roster editor (individual rows with add/remove buttons).
-
-**Recommended fix:** Replace the comma-separated input with a list-style editor matching the roster editor pattern:
-- Each segment as its own row with a text input
-- Delete button per row
-- "Add Segment" button at bottom
-- Drag-to-reorder is nice-to-have but not required for v1
-
-**Semver:** MINOR (UX improvement, no data model change — still stored as `customSegments[]`)
-
----
-
-## Architecture Notes (No Changes Required)
-
-The existing architecture handles multi-sport cleanly:
-
-- **`_activeSegments()`** already checks `gameState.customSegments` before falling back to preset. A parallel `_activeActions()` follows the same pattern.
-- **`SequenceBuilder.interpret()`** is sport-agnostic — it keys on action IDs (`goal*`, `timeout`, infraction types). Custom actions using these IDs will work automatically.
-- **`SPORT_PRESETS` in `app.js`** — history.md notes this could move to `sports.js` if it grows. At 7 presets + custom, it's still fine inline. No extraction needed for this issue.
-- **Zero-dependency constraint** — all recommendations above are implementable in vanilla ES modules. No new dependencies.
+- **`_activeSegments()` pattern is proven** — `_activeActions()` is a direct copy of the same paradigm
+- **`SequenceBuilder.interpret()` is sport-agnostic** — it keys on action IDs; custom actions reusing standard IDs work automatically
+- **Zero-dependency constraint holds** — all changes are vanilla ES modules, no new imports
+- **localStorage capacity** — `gameState.customActions` is a new array field; well within the 5-10MB limit
 
 ---
 
 ## Priority Order for Engineering
 
-| Priority | Gap | Effort | Impact |
+| Priority | Item | Effort | Impact |
 |---|---|---|---|
-| 1 | Custom sport action editor (Gap 1) | Medium (~4-6h) | High — completes the "custom" sport promise |
-| 2 | Period-end auto-load score (Gap 2) | Low (~30min) | High — live game UX win |
-| 3 | Segment editor UX polish (Gap 4) | Low-medium (~2h) | Medium — polish |
-| 4 | Deployment docs (Gap 3) | Low (~1h) | Medium — unblocks demo site |
+| P1 | Custom sport action editor | Medium (3-4h) | High — completes the "Custom" sport feature |
+| P2 | Deployment docs | Low (30min) | Medium — enables Justin to self-deploy |
+
+**Everything else in the issue epic is already done.**
 
 ---
 
-## Files to Change (Engineering Phase)
+## Critical Warning: Branch History
 
-| File | Change |
-|---|---|
-| `js/app.js` | Add `_activeActions()`, extend `_renderSegmentEditor()` for action editor, call `generateScoreReport()` from `changePeriod()`, handle `gameState.customActions` in `saveSettings()` and `updateActionButtons()` |
-| `index.html` | No structural changes required — action editor renders into existing `#segment-editor` container |
-| `css/style.css` | Action editor row styles (reuse `.player-edit-row` pattern), minor tweaks |
-| `js/storage.js` | Verify `customActions` survives round-trip (likely automatic since it's just stored on gameState) |
-| `docs/deploy.md` | New file — deployment documentation |
-
-**Tests to add/update:**
-- No changes to `text-generator.js` or `storage.js` logic, so existing 59 tests should pass unchanged
-- Add a test for `_activeActions()` in `app.js` (currently untested, since App is not exported) — low priority
-
----
-
-## Risks & Flags
-
-- **`createMediaElementSource` one-time limit**: Web Audio API limits: each `<audio>` element can only be connected to an `AudioContext` once. This is already handled in `MusicManager` but worth noting for any new audio features.
-- **Custom action IDs**: If a custom action uses `id: 'goal'` (the default), it will trigger score increment and goal horn. This is correct behavior but should be called out in the UI.
-- **LocalStorage size**: `gameState` is growing (customSegments, customActions). Still well within the 5-10MB limit, but worth monitoring.
-
----
-
-## Recommendation
-
-**Ship Gaps 1+2 together as a single engineering issue.** Gap 2 is 30 minutes of work — no reason to wait. Gap 1 is the real meat of issue #8 and completes the "custom sport" feature.
-
-**Gap 3 (deployment)** is a separate concern — either document it manually or create a separate infra issue.
-
-**Gap 4 (segment editor polish)** is a nice-to-have that can be bundled with Gap 1 since the same Settings modal section is being reworked.
+**Eight+ prior merge conflicts on `agent/8`.** The branch is at `main` HEAD (`fb708ef`). Engineering must:
+1. Work only on `agent/8` — never commit to `main` directly
+2. Verify `git status` is clean before starting
+3. Let the dispatcher handle the merge after QA passes
