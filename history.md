@@ -52,7 +52,8 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 ### Immediate Next Steps (from open issues)
 - Live demo at `demo.justintormey.com/cougarcast/` — no GitHub Pages or deploy script set up yet; deployment is manual via Half Bakery deployer + CloudFront config in `.local/`
 - ~~Add `escHtml()` utility~~ — done in issue #11; app.js sites escaped; 3 sibling-module sites remain (see issue #14)
-- Export `escHtml()` to shared `utils.js` and patch remaining unescaped innerHTML sites in `roster.js` (player display), `sequence-builder.js` (chip labels), `announcements.js` (item titles), **and `music-manager.js`** (player name/number and team name in walkup section — QA finding M1 from issue #10) — issue #14
+- ~~`music-manager.js` walkup innerHTML sites escaped~~ — done in issue #17; `js/utils.js` created with exported `escHtml()`; player name, jersey number, home/away team mascot/name all wrapped
+- Export `escHtml()` to shared `utils.js` (✓ created by #17) and patch remaining unescaped innerHTML sites in `roster.js` (player display), `sequence-builder.js` (chip labels), `announcements.js` (item titles) — issue #14; `app.js` can also switch to importing from `utils.js` instead of its local copy
 - ~~Add `textColor` input to custom action editor rows~~ — done in issue #12; "Dark text" checkbox added to all action editor rows (both existing and newly-added); `_saveActionsFromEditor()` writes `textColor: '#000'` or `'white'`; existing rows pre-populate checked state from saved `textColor`
 - Panner node cleanup (low priority): store `_atmospherePanner`, `_activePanner`, `_previewPanner` references and call `.disconnect()` in `stopAtmosphere()`, `stopMusic()`, and `_previewBlob()` teardown paths — accumulates orphaned nodes in the Web Audio graph over many start/stop cycles; bounded by session duration, no data loss (QA finding L2 from issue #10)
 
@@ -102,6 +103,23 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 ---
 
 ## Session Log
+
+### 2026-04-18 — Issue #17: Expand escHtml() coverage to music-manager.js
+
+**Work:** Created shared `js/utils.js` exporting `escHtml()`. Applied it to the 4 unescaped innerHTML sites in `music-manager.js` walkup section: player first/last name, jersey number display, home team mascot/name, away team mascot/name.
+
+**Files changed:**
+- `js/utils.js` — New file; exports `escHtml()` as the canonical shared HTML-escaping utility (identical implementation to the local function in `app.js`).
+- `js/music-manager.js` — Added `import { escHtml } from './utils.js'`; wrapped `#${p.number}`, `${name}`, `${home?.mascot||home?.name||'Home'}`, `${away?.mascot||away?.name||'Away'}` in `escHtml()` calls inside `_renderWalkupSection()`.
+- `history.md` — Marked issue #17 complete in Unfinished Work; updated issue #14 note to reflect utils.js now exists.
+
+**Architecture:**
+- `utils.js` is the foundation for the broader issue #14 migration. `app.js` still defines `escHtml` locally — issue #14 should switch it to `import { escHtml } from './utils.js'` and patch `roster.js`, `sequence-builder.js`, `announcements.js`.
+- `data-number` attribute in walkup rows and `data-cue`/`data-player`/`id` attributes built from `p.number` are used only as DOM keys (bound back via `dataset.player`) so remain unescaped; the actual visible text and team name headers are the user-facing XSS surface.
+
+**Status:** PATCH — no behavior change for well-formed input. 59/59 tests pass.
+
+---
 
 ### 2026-04-18 — Issue #12: textColor field in custom action editor
 

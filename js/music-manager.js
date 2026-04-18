@@ -9,6 +9,7 @@
 // is routed through AudioContext for stereo panning.
 
 import { AudioStorage, CUE_KEYS } from './audio-storage.js';
+import { escHtml } from './utils.js';
 
 export class MusicManager {
   constructor(audioManager, gameState) {
@@ -324,8 +325,8 @@ export class MusicManager {
         const name = `${p.firstName} ${p.lastName}`.trim() || `#${p.number}`;
         return `
           <div class="walkup-row" data-team="${team}" data-number="${p.number}">
-            <span class="walkup-number ${team}">#${p.number}</span>
-            <span class="walkup-name">${name}</span>
+            <span class="walkup-number ${team}">#${escHtml(p.number)}</span>
+            <span class="walkup-name">${escHtml(name)}</span>
             <span class="music-status-badge ${has ? 'loaded' : 'empty'} small">${has ? '♪' : '—'}</span>
             <button class="music-btn upload small" data-cue="walkup-${team}-${p.number}" data-team="${team}" data-player="${p.number}">⬆</button>
             <button class="music-btn clear danger small" data-cue="walkup-${team}-${p.number}" data-team="${team}" data-player="${p.number}" ${!has ? 'disabled' : ''}>✕</button>
@@ -337,11 +338,11 @@ export class MusicManager {
 
     return `
       <div class="walkup-team-block">
-        <div class="walkup-team-header home">${home?.mascot || home?.name || 'Home'}</div>
+        <div class="walkup-team-header home">${escHtml(home?.mascot || home?.name || 'Home')}</div>
         ${renderTeam(homeRoster, 'home', home)}
       </div>
       <div class="walkup-team-block">
-        <div class="walkup-team-header away">${away?.mascot || away?.name || 'Away'}</div>
+        <div class="walkup-team-header away">${escHtml(away?.mascot || away?.name || 'Away')}</div>
         ${renderTeam(awayRoster, 'away', away)}
       </div>
     `;
