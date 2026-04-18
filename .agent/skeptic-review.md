@@ -1,3 +1,43 @@
+# Skeptic Review — Issue #9 (Score Reporting & Automatic Period Announcements) — Final Pass (post-QA fix)
+**Date:** 2026-04-18
+**Stage:** Final Skeptic verification (post-QA L1 fix, commit 64a6273)
+**Commits reviewed:** 0e8d5d1 (Engineering) + 64a6273 (QA L1 fix: _autoPlayInFlight guard)
+
+---
+
+## What Changed Since Last Skeptic Pass
+
+QA issued one L1 (low severity) finding: a narrow ~1-2s race window where pressing PLAY during the ElevenLabs round-trip could trigger a second concurrent TTS call, causing brief duplicate PA audio. Commit `64a6273` adds the `_autoPlayInFlight` boolean guard to close this race.
+
+## Verification of 64a6273
+
+### Guard implementation — CONFIRMED
+
+- `js/app.js:137`: `this._autoPlayInFlight = false;` initialized in constructor. Correct — defined before `init()` call.
+- `js/app.js:251`: `if (this._autoPlayInFlight) return;` — guard check at entry, before any `await`. Correct placement.
+- `js/app.js:255`: `this._autoPlayInFlight = true;` — set immediately before the `await tts.generateAudio(...)` call. No code between set and await. Correct.
+- `js/app.js:265`: `this._autoPlayInFlight = false;` in `finally` block — guarantees reset on both success AND TTS exception. This is the critical correctness detail: a TTS error will never permanently disable future auto-announces.
+
+### 59/59 tests pass — CONFIRMED (ran `npx vitest run` on current tree)
+
+### Full feature state in current codebase — CONFIRMED
+
+All original Engineering deliverables remain intact:
+- `changePeriod()` wires auto-announce at `app.js:223-224` (gated on `autoAnnouncePeriodEnd`)
+- Migration guard at `app.js:146` (defaults to `true` for older game states)
+- Config checkbox read at `app.js:621`, written at `app.js:681`
+- `generatePeriodScore()` covers tie-score case (no "leads" when tied — #4/#6 regressions tested and passing)
+
+## Data Lifecycle Audit (no new state introduced)
+
+`_autoPlayInFlight` is a transient in-memory boolean on the App instance. It is NOT persisted to localStorage and has no effect on gameState structure. No migration needed. No reader/writer conflicts.
+
+## Verdict: APPROVE — Route to Done
+
+Feature is complete, correct, and the QA L1 race condition is cleanly resolved. No open findings remain.
+
+---
+
 # Skeptic Review — Issue #9 (Score Reporting & Automatic Period Announcements) — Engineering Pass
 **Date:** 2026-04-18  
 **Stage:** Engineering output verification  
