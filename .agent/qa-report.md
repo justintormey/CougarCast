@@ -1,3 +1,178 @@
+# QA Report — Issue #10: Music Cues System (Atmosphere Loop)
+
+**Date:** 2026-04-18
+**Reviewer:** QA Agent
+**Commit reviewed:** 7ea6f98
+**Branch:** agent/CougarCast-10
+**Tests:** 59/59 passing
+
+---
+
+## Summary
+
+**PASS** — The atmosphere loop feature is correctly implemented and completes the four-layer PA music cues system (goal horn, timeout music, walkup songs, atmosphere loop). Architecture is sound, audio routing is correct, the kill switch covers both tracks, and no new critical or high-severity issues were found. Two medium-severity issues and two low-severity issues are noted below.
+
+---
+
+## Feature Completeness Checklist
+
+| Requirement (from issue #10) | Status | Notes |
+|------------------------------|--------|-------|
+| Goal horn on score event | PASS | Shipped in #2; untouched, still wired in `app.js:176` |
+| Walkup music from roster tap | PASS | Shipped in #2/#5; untouched, still wired in `app.js:181` |
+| Timeout music | PASS | Shipped in #2; untouched, still wired in `app.js:177` |
+| Atmosphere/ambient loop | PASS | Implemented in this commit; `playAtmosphere()` / `stopAtmosphere()` |
+| Audio routes to PA (right) channel | PASS | `panner.pan.value = 1` at `music-manager.js:112` and `music-manager.js:146` |
+| Config/audio lives in `.local/` (gitignored) | PASS | Audio files stored in IndexedDB (browser-local, never committed); `.gitignore` has `.local/` and `.agent/` |
+| Independent atmosphere track (does not stop on PLAY) | PASS | `stopMusic()` only clears `_activeAudio`; atmosphere uses separate `_atmosphereAudio` |
+| Stop All Music kills both tracks | PASS | `_bindStopButton()` calls both `stopMusic()` and `stopAtmosphere()` |
+| Volume control for atmosphere | PASS | Range slider, live gain update via `_atmosphereGain.gain.value` |
+
+---
+
+## Audio Routing Verification
+
+All four cue types route to the correct channel:
+
+- **Goal horn / timeout / walkup** (`_playBlob`): `panner.pan.value = 1` (right = PA) — `music-manager.js:146`
+- **Atmosphere** (`playAtmosphere`): `panner.pan.value = 1` (right = PA) — `music-manager.js:112`
+- **Preview** (`_previewBlob`): `panner.pan.value = -1` (left = headphone) — `music-manager.js:186`
+
+TTS announcements route via `AudioManager.play()` which uses `pan = 1` (right/PA). Consistent with all music cues.
+
+---
+
+## Security Review
+
+### M1 — Unescaped player name in walkup section innerHTML [MEDIUM]
+
+**Location:** `music-manager.js:324, 328`
+
+```js
+const name = `${p.firstName} ${p.lastName}`.trim() || `#${p.number}`;
+// ...
+<span class="walkup-name">${name}</span>
+```
+
+Player `firstName` and `lastName` are injected directly into innerHTML without escaping. A player name containing `<script>` or other HTML would execute in the Music tab. This is self-XSS (operator sets roster data themselves in Settings), consistent with the three known unescaped sites tracked under issue #14. This is a new unescaped site introduced by this commit that was not in scope for issue #11.
+
+**Also at lines 340/344:**
+```js
+<div class="walkup-team-header home">${home?.mascot || home?.name || 'Home'}</div>
+```
+Team mascot/name injected without escaping.
+
+**Severity:** MEDIUM (self-XSS only; operator controls their own data; same class as issue #14 findings)
+**Recommendation:** Export `escHtml()` to a shared `utils.js` (planned in issue #14) and import in `music-manager.js`. Also add `p.number` escaping.
+
+### L1 — Player number injected into data attributes without sanitization [LOW]
+
+**Location:** `music-manager.js:326, 327, 330, 331`
+
+```js
+<div class="walkup-row" data-team="${team}" data-number="${p.number}">
+<span class="walkup-number ${team}">#${p.number}</span>
+```
+
+`p.number` (jersey number) is injected into HTML attributes and text content without escaping. In practice, roster numbers are always digits set by the operator. Low practical risk but inconsistent with escaping policy. Same mitigation as M1.
+
+---
+
+## Code Quality Review
+
+### L2 — Atmosphere panner node is not stored; disconnect chain is incomplete [LOW]
+
+**Location:** `music-manager.js:97-131`
+
+```js
+const panner = ctx.createStereoPanner();
+// ...
+source.connect(gain);
+gain.connect(panner);
+panner.connect(ctx.destination);
+
+this._atmosphereAudio = audio;
+this._atmosphereUrl = url;
+this._atmosphereSource = source;
+this._atmosphereGain = gain;
+// panner is NOT stored
+```
+
+`stopAtmosphere()` calls `this._atmosphereSource.disconnect()` but the `gain → panner → destination` subgraph is not explicitly torn down. In the Web Audio spec, disconnecting a source from downstream does not disconnect downstream nodes from each other. The `panner.connect(ctx.destination)` link persists until AudioContext is closed. Over many start/stop cycles in a long session, this accumulates nodes in the graph.
+
+Note: the same pre-existing pattern exists in `_playBlob()`. This commit does not worsen the situation but does replicate the gap.
+
+**Severity:** LOW (AudioContext GC handles this eventually; operator sessions are bounded in duration)
+**Recommendation:** Store `_atmospherePanner` and call `_atmospherePanner.disconnect()` in `stopAtmosphere()`. Apply same fix to `_playBlob()` and `_previewBlob()` as a separate cleanup pass.
+
+### L3 — No user feedback when autoplay is blocked [LOW]
+
+**Location:** `music-manager.js:123-130`
+
+```js
+try {
+  await audio.play();
+  this._updateStopButton();
+  this._updateAtmosphereCard();
+} catch (err) {
+  // Autoplay blocked — Web Audio context may need resuming
+  this.stopAtmosphere();
+}
+```
+
+If the browser blocks autoplay (e.g., iOS before first user gesture), `playAtmosphere()` silently fails. The same silent-failure pattern exists in `_playBlob()` (pre-existing). For atmosphere this is more noticeable because the operator manually presses Play and sees nothing happen with no indication of why.
+
+**Severity:** LOW (consistent with pre-existing pattern; operator will retry after interacting with the page)
+**Recommendation:** Surface a brief status message or toast when catch fires. Lower priority — same gap exists throughout the cue track.
+
+---
+
+## Architecture Assessment
+
+The implementation correctly follows the research spec and the established `_playBlob()` pattern:
+
+1. **Two independent audio graphs** — `_activeAudio` (cue track) and `_atmosphereAudio` (atmosphere) share the same `AudioContext` but are independent node chains. Correct.
+2. **`stopMusic()` isolation** — `onPlayFired` callback stops only `_activeAudio`. Atmosphere is untouched. Verified.
+3. **Stop All kill switch** — `_bindStopButton()` calls both `stopMusic()` and `stopAtmosphere()`. Verified.
+4. **Fresh `new Audio(url)` on every `playAtmosphere()` call** — `stopAtmosphere()` is called first to tear down the old instance before creating a new one. Avoids `MediaElementSource` reuse quirk. Correct.
+5. **Gain node for live volume control** — `_atmosphereGain.gain.value = vol` updated directly during playback without stop/restart. Correct.
+6. **PA channel routing** — `panner.pan.value = 1` throughout. Consistent with all other cues.
+7. **In-place button update** — `_updateAtmosphereCard()` swaps `.play-atm` / `.stop-atm` class without a full re-render. Avoids re-binding all event listeners on every play/stop. Correct pattern.
+
+---
+
+## Test Coverage
+
+59/59 tests pass (unchanged from prior QA). The atmosphere track is a UI/audio-hardware layer with no pure logic to unit test (IndexedDB, Web Audio API, and DOM manipulation are all outside Vitest's Node environment). Consistent with the existing `MusicManager` coverage decision. No new testable pure logic was added.
+
+---
+
+## Config Structure
+
+Audio blobs are stored in IndexedDB (`ainnouncr_audio` DB, `cues` store). Browser-local and never committed to git. `.gitignore` correctly excludes `.local/` for deploy config and roster PII. Config structure requirement is met.
+
+---
+
+## Verdict
+
+**PASS.** The atmosphere loop is correctly implemented, correctly isolated from the cue track, correctly routed to the PA (right) channel, and the Stop All kill switch covers both tracks. The medium finding (M1, unescaped innerHTML for player/team names) is consistent in severity with the three sites tracked in issue #14 and should be folded into that work. No blockers.
+
+### Follow-up Recommended
+
+1. **Expand issue #14 scope**: Add `music-manager.js` unescaped player name, player number, and team name sites to the `escHtml()` / `utils.js` migration.
+2. **Panner node cleanup** (low priority): Store and disconnect panner in `stopAtmosphere()`, `stopMusic()`, and `_previewBlob()` teardown paths.
+
+---
+
+##SUMMARY##
+DONE: QA review of 7ea6f98 — atmosphere loop for issue #10. All four music cues complete. 59 tests pass. No critical/high findings. 1 medium (unescaped innerHTML for player/team names in walkup section, same class as issue #14), 3 low findings (player number attribute, panner node cleanup, silent autoplay failure).
+FILES: .agent/qa-report.md
+COMMITS: (pending)
+FOLLOWUP: Expand issue #14 to include music-manager.js unescaped sites | Panner disconnect cleanup (low priority)
+##END##
+
+---
+
 # QA Report — Issue #11: Add escHtml() utility
 **Date:** 2026-04-17  
 **Commit reviewed:** 58e551a  
