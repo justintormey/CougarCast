@@ -49,7 +49,7 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 
 ## Unfinished Work
 
-### Immediate Next Steps
+### Immediate Next Steps (from open issues)
 - Live demo at `demo.justintormey.com/cougarcast/` — no GitHub Pages or deploy script set up yet; deployment is manual via Half Bakery deployer + CloudFront config in `.local/`
 - ~~Add `escHtml()` utility~~ — done in issue #11; app.js sites escaped; 3 sibling-module sites remain (see issue #14)
 - Export `escHtml()` to shared `utils.js` and patch remaining unescaped innerHTML sites in `roster.js` (player display), `sequence-builder.js` (chip labels), `announcements.js` (item titles), **and `music-manager.js`** (player name/number and team name in walkup section — QA finding M1 from issue #10) — issue #14
@@ -102,6 +102,25 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 ---
 
 ## Session Log
+
+### 2026-04-18 — Issue #9: Auto period-end score announcement
+
+**Work:** Added `autoAnnouncePeriodEnd` feature — when an operator presses the ▶ next-period button, CougarCast now automatically generates a natural-language score summary and sends it directly to ElevenLabs TTS for PA broadcast, in addition to loading the text into the audio bar.
+
+**Files changed:**
+- `js/app.js` — Added `_autoPlayPeriodScore(text)` async method; wired it into `changePeriod()` when `gameState.autoAnnouncePeriodEnd` is true; added migration for the new field (defaults to `true`); wired `populateSettings()` and `saveSettings()` to persist the toggle.
+- `index.html` — Added "Auto-announce score when period ends" checkbox toggle to the Sport Configuration settings group.
+- `CHANGELOG.md` — Documented the feature in [Unreleased] Added section.
+
+**Architecture:**
+- `_autoPlayPeriodScore()` is **fire-and-forget async** — it does not block the synchronous period advance or audio-bar update. The period chip advances immediately; audio plays when TTS responds.
+- **Progressive degradation**: silently no-ops if API key or voice aren't configured; logs a `console.warn` on TTS failure. Text is always in the audio bar as a fallback for manual ▶ PLAY.
+- `gameState.autoAnnouncePeriodEnd` is persisted to localStorage alongside score and period — games run for hours, and this setting survives page reloads.
+- Score state (`homeScore`, `awayScore`, `period`) was already fully persisted via `onGameStateChanged()` → `storage.saveGame()` on every change. No new persistence work needed.
+
+**Status:** 59/59 tests pass. MINOR — additive feature, no breaking changes.
+
+---
 
 ### 2026-04-18 — Issue #10: Docs — CHANGELOG and history sync
 

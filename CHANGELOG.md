@@ -10,6 +10,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Auto-announce score at period end — when advancing to the next period, CougarCast automatically generates a natural-language score summary and sends it to ElevenLabs TTS for PA broadcast (issue #9). Configurable via the Sport Configuration section in Settings. Gracefully degrades to text-only if no API key or voice is configured.
+- `autoAnnouncePeriodEnd` field in `gameState` (persisted to localStorage, default `true`) — controls whether period-end score announcements play automatically
 - Atmosphere / crowd ambient loop — fourth and final PA audio layer (issue #10). Runs on a separate audio graph from the event-triggered cue track; persists through goal horns, walkup songs, and TTS announcements; manually started/stopped via the Music tab; volume-controlled via a live-gain slider (no restart required). Stored in IndexedDB alongside other cues.
 - Custom sport action button editor — operators using the "Custom" sport type can now add, remove, rename, recolor, and set point values on action buttons directly from the Settings modal (issue #8)
 - `_activeActions()` method mirrors `_activeSegments()` pattern — custom actions persist via `gameState.customActions[]` and auto-clear when switching back to a preset sport

@@ -154,6 +154,8 @@ class App {
 
     // Migrate older game states that lack period field
     if (this.gameState.period === undefined) this.gameState.period = 1;
+    // Migrate older game states that lack autoAnnouncePeriodEnd (default: on)
+    if (this.gameState.autoAnnouncePeriodEnd === undefined) this.gameState.autoAnnouncePeriodEnd = true;
 
     this.rosterManager = new RosterManager(this.gameState, this.storage, () => this.onGameStateChanged());
     this.sequenceBuilder = new SequenceBuilder(
@@ -229,6 +231,10 @@ class App {
     if (delta > 0) {
       this.generateScoreReport();
       this._pulseAudioBar();
+      // If auto-announce is enabled, also send the text to TTS and play to PA channel.
+      if (this.gameState.autoAnnouncePeriodEnd) {
+        this._autoPlayPeriodScore(this.sequenceBuilder.generatedText);
+      }
     }
 
     this.gameState.period = newPeriod;
@@ -242,6 +248,27 @@ class App {
     if (!bar) return;
     bar.classList.add('pulse-hint');
     setTimeout(() => bar.classList.remove('pulse-hint'), 1200);
+  }
+
+  /**
+   * Fire-and-forget: generates TTS for the given text and plays it to the PA channel (right).
+   * Called automatically when advancing periods if autoAnnouncePeriodEnd is enabled.
+   * Silently no-ops if API key or voice are not configured; logs a warning on failure.
+   */
+  async _autoPlayPeriodScore(text) {
+    if (!text) return;
+    if (!this.storage.getApiKey()) return; // no API key — leave text in audio bar only
+    if (!this.storage.getVoiceId()) return; // no voice selected
+
+    try {
+      const audio = await this.tts.generateAudio(text, 'neutral');
+      if (audio) {
+        this.audioManager.play(audio);
+      }
+    } catch (err) {
+      // TTS failed — text remains in audio bar so operator can press ▶ PLAY manually
+      console.warn('[CougarCast] Auto-announce TTS failed:', err.message);
+    }
   }
 
   generateScoreReport() {
@@ -589,6 +616,7 @@ class App {
     const preset = SPORT_PRESETS[sport];
     document.getElementById('sport-description').textContent = preset?.description || '';
     this._renderSegmentEditor(sport, preset?.segments);
+    document.getElementById('auto-announce-period').checked = this.gameState.autoAnnouncePeriodEnd !== false;
 
     this.renderRosterEdit();
 
@@ -648,6 +676,7 @@ class App {
     // Save sport — customSegments are updated live by the segment editor input listeners
     const sport = document.getElementById('sport-preset').value;
     this.gameState.sport = sport;
+    this.gameState.autoAnnouncePeriodEnd = document.getElementById('auto-announce-period').checked;
 
     this.gameState.homeTeam.name = document.getElementById('home-name').value.trim();
     this.gameState.homeTeam.mascot = document.getElementById('home-mascot').value.trim();
