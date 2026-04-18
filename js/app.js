@@ -134,6 +134,7 @@ class App {
     this.sequenceBuilder = null;
     this.announcementsManager = null;
     this.musicManager = null;
+    this._autoPlayInFlight = false; // guard against double TTS call during ElevenLabs round-trip
   }
 
   init() {
@@ -241,12 +242,17 @@ class App {
    * Fire-and-forget: generates TTS for the given text and plays it to the PA channel (right).
    * Called automatically when advancing periods if autoAnnouncePeriodEnd is enabled.
    * Silently no-ops if API key or voice are not configured; logs a warning on failure.
+   *
+   * Guard: _autoPlayInFlight prevents a second TTS call from overlapping if the operator
+   * presses ▶ PLAY in the audio bar during the ~1-2s ElevenLabs round-trip window.
    */
   async _autoPlayPeriodScore(text) {
     if (!text) return;
+    if (this._autoPlayInFlight) return; // already awaiting TTS — skip to avoid duplicate PA audio
     if (!this.storage.getApiKey()) return; // no API key — leave text in audio bar only
     if (!this.storage.getVoiceId()) return; // no voice selected
 
+    this._autoPlayInFlight = true;
     try {
       const audio = await this.tts.generateAudio(text, 'neutral');
       if (audio) {
@@ -255,6 +261,8 @@ class App {
     } catch (err) {
       // TTS failed — text remains in audio bar so operator can press ▶ PLAY manually
       console.warn('[CougarCast] Auto-announce TTS failed:', err.message);
+    } finally {
+      this._autoPlayInFlight = false;
     }
   }
 

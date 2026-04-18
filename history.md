@@ -104,6 +104,24 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 
 ## Session Log
 
+### 2026-04-18 — Issue #19: Fix async race in _autoPlayPeriodScore()
+
+**Work:** Added `_autoPlayInFlight` boolean guard to `_autoPlayPeriodScore()` to prevent a double TTS call if the operator presses ▶ PLAY in the audio bar within the ~1-2s ElevenLabs round-trip window (QA L1 finding from issue #9).
+
+**Files changed:**
+- `js/app.js` — Initialized `this._autoPlayInFlight = false` in the constructor. In `_autoPlayPeriodScore()`: early-return guard (`if (this._autoPlayInFlight) return`), set flag to `true` before the TTS call, and reset in `finally` to guarantee cleanup on both success and failure paths.
+- `history.md` — Marked issue #9 L1 race resolved; added this session log entry.
+
+**Architecture:**
+- Flag lives on `this` (instance state) so it persists across all calls for the session lifetime.
+- `finally` block guarantees `_autoPlayInFlight` resets on TTS error — without it, a single ElevenLabs failure would permanently silence all future auto-announces.
+- Guard placed after `!text` (cheap exit, no TTS involved) but before API key checks so only real TTS-bound calls are gated.
+
+**Status:** PATCH — no behavior change under normal conditions. 59/59 tests pass.
+
+---
+
+
 ### 2026-04-18 — Issue #18: Complete escHtml() migration to utils.js
 
 **Work:** Migrated all remaining unescaped innerHTML sites to use the shared `escHtml()` from `js/utils.js`. Removed the local `escHtml` definition from `app.js` and replaced it with an import. Added `import { escHtml } from './utils.js'` to `roster.js`, `sequence-builder.js`, and `announcements.js`, then applied `escHtml()` to each unescaped user-data site.
