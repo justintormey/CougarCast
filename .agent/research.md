@@ -1,3 +1,300 @@
+<!-- Previous content for issue #8 preserved below the issue #10 section -->
+
+---
+
+# Research: Issue #10 — Music Cues System (Atmosphere Loop Gap Analysis)
+
+**Date:** 2026-04-17  
+**Stage:** Research → Engineering  
+**Semver:** MINOR (additive — new audio track + UI card, no breaking changes)  
+**Issue:** justintormey/CougarCast #10
+
+---
+
+## Executive Summary
+
+Three of the four music cues described in issue #10 already ship. The **only missing piece is the atmosphere/crowd ambient loop**. Engineering scope is: add `_atmosphereAudio` as a second independent audio track in `MusicManager`, add a new UI card on the Music tab, and wire a "Start Crowd / Stop Crowd" toggle distinct from the existing stop-all behavior.
+
+---
+
+## Current State Audit
+
+| Cue | Trigger | Status | Code Location |
+|-----|---------|--------|---------------|
+| Goal horn | `onGoalScored` callback → `SequenceBuilder._triggerMusicCue()` | ✅ Shipped (#2) | `MusicManager.playGoalHorn()` |
+| Timeout music | `onTimeoutCalled` callback → `SequenceBuilder._triggerMusicCue()` | ✅ Shipped (#2) | `MusicManager.playTimeout()` |
+| Walkup music | Player tap → `rosterManager.onPlayerSelect` hook in `app.js` | ✅ Shipped (#2, fixed #5) | `MusicManager.playWalkup(team, number)` |
+| Atmosphere loop | Manual start/stop by operator | ❌ **Not implemented** | — |
+
+---
+
+## Gap: Atmosphere / Crowd Ambient Loop
+
+### What it is
+A continuous looping audio track (crowd noise, pre-game music, stadium ambience) that:
+- Runs independently of the three event-triggered cues
+- Plays on the PA (right) channel at a reduced volume (background level)
+- Persists through goal horns, walkup songs, and TTS announcements
+- Is manually started and stopped by the operator (not auto-triggered)
+- Is completely optional — no impact if no file is uploaded
+
+### Why the current single-track model won't work
+`MusicManager` has one `_activeAudio` slot. Every call to `_playBlob()` calls `stopMusic()` first, killing whatever was playing. An atmosphere loop killed every time a player taps would be unusable.
+
+Atmosphere requires a **second, independent audio instance** that:
+1. Lives in `_atmosphereAudio` (separate from `_activeAudio`)
+2. Is not stopped by `stopMusic()` (called on every ▶ PLAY press via `onPlayFired`)
+3. Has its own `stopAtmosphere()` method
+4. Is included in "Stop All" (the global ■ Stop All Music button)
+
+---
+
+## Architecture Design
+
+### Data Model
+
+Add one new IndexedDB key to `audio-storage.js`:
+```js
+export const CUE_KEYS = {
+  goalHorn:   () => 'goal-horn',
+  timeout:    () => 'timeout',
+  walkup:     (team, number) => `walkup-${team}-${number}`,
+  atmosphere: () => 'atmosphere',          // NEW
+};
+```
+
+No changes to `AudioStorage` class — the key naming is all that's needed.
+
+### MusicManager State Additions
+
+```js
+// NEW — separate atmosphere track state
+this._atmosphereAudio  = null;
+this._atmosphereUrl    = null;
+this._atmosphereSource = null;
+this._atmosphereVolume = 0.4;   // default 40% — background level
+```
+
+### New Methods
+
+```js
+// Start atmosphere loop (loops until stopAtmosphere())
+async startAtmosphere() {
+  const blob = await this.audioStorage.load(CUE_KEYS.atmosphere());
+  if (!blob) return;
+  await this._playAtmosphereBlob(blob);
+}
+
+// Stop atmosphere loop only (does NOT kill goal horn / walkup / timeout)
+stopAtmosphere() {
+  if (this._atmosphereAudio) {
+    this._atmosphereAudio.pause();
+    this._atmosphereAudio = null;
+  }
+  if (this._atmosphereUrl) {
+    URL.revokeObjectURL(this._atmosphereUrl);
+    this._atmosphereUrl = null;
+  }
+  if (this._atmosphereSource) {
+    try { this._atmosphereSource.disconnect(); } catch { /* gone */ }
+    this._atmosphereSource = null;
+  }
+  this._updateAtmosphereButton();
+}
+
+// Internal: play blob on right (PA) channel at atmosphere volume, looping forever
+async _playAtmosphereBlob(blob) {
+  this.stopAtmosphere();
+
+  const ctx = this.audioManager.getContext();
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  audio.loop = true;
+
+  const source = ctx.createMediaElementSource(audio);
+  const gain   = ctx.createGain();
+  gain.gain.value = this._atmosphereVolume;
+  const panner = ctx.createStereoPanner();
+  panner.pan.value = 1;  // right = PA
+
+  source.connect(gain);
+  gain.connect(panner);
+  panner.connect(ctx.destination);
+
+  this._atmosphereAudio  = audio;
+  this._atmosphereUrl    = url;
+  this._atmosphereSource = source;
+
+  try {
+    await audio.play();
+    this._updateAtmosphereButton();
+  } catch (err) {
+    this.stopAtmosphere();
+  }
+}
+```
+
+### `stopMusic()` modification
+
+**Do NOT change `stopMusic()`**. It is called on every ▶ PLAY press via the `onPlayFired` hook and should continue to kill walkup/goal horn/timeout. Atmosphere persists through game events intentionally.
+
+Update only the **"Stop All Music" button handler** to call both:
+```js
+newBtn.addEventListener('click', () => {
+  this.stopMusic();
+  this.stopAtmosphere();
+});
+```
+
+### Volume Control
+
+Add a simple volume slider on the atmosphere card. Store the value in `this._atmosphereVolume` (session only — no persistence needed). When the slider changes:
+```js
+slider.addEventListener('input', (e) => {
+  this._atmosphereVolume = parseFloat(e.target.value);
+  // Update gain in real-time if track is currently playing
+  if (this._atmosphereGain) {
+    this._atmosphereGain.gain.value = this._atmosphereVolume;
+  }
+});
+```
+
+To support real-time volume updates, store the `gain` node reference:
+```js
+this._atmosphereGain = gain;  // add to _playAtmosphereBlob after creating gain node
+```
+
+---
+
+## UI Design
+
+### New card in `MusicManager.render()`
+
+Insert between "Timeout Music" and the "■ Stop All Music" button:
+
+```html
+<div class="music-card" id="card-atmosphere">
+  <div class="music-card-header">
+    <span class="music-card-icon">🏟️</span>
+    <div class="music-card-meta">
+      <div class="music-card-title">Crowd / Atmosphere</div>
+      <div class="music-card-sub">Loops continuously on PA — start/stop manually</div>
+    </div>
+    <span class="music-status-badge [loaded|empty]">[Loaded|No file]</span>
+  </div>
+  <div class="music-card-actions">
+    <button class="music-btn upload" data-cue="atmosphere">⬆ Upload</button>
+    <button class="music-btn preview" data-cue="atmosphere" [disabled]>▶ Preview</button>
+    <button class="music-btn clear danger" data-cue="atmosphere" [disabled]>✕ Clear</button>
+  </div>
+  <!-- Start/stop toggle — only shown when file is loaded -->
+  <div class="atmosphere-controls" [hidden if no file]>
+    <button class="atmosphere-toggle-btn [active if playing]" id="atmosphere-toggle-btn">
+      [▶ Start Crowd | ■ Stop Crowd]
+    </button>
+    <div class="atmosphere-volume-row">
+      <label>Volume</label>
+      <input type="range" id="atmosphere-volume" min="0" max="1" step="0.05" value="0.4">
+      <span id="atmosphere-volume-pct">40%</span>
+    </div>
+  </div>
+  <input type="file" class="music-file-input" id="file-atmosphere" accept="audio/*" style="display:none">
+</div>
+```
+
+### Toggle button behavior
+
+```
+State: no file loaded   → "Start Crowd" (disabled)
+State: file loaded, not playing → "▶ Start Crowd" (enabled)
+State: file loaded, playing → "■ Stop Crowd" (active/highlighted)
+```
+
+The toggle button:
+- Is NOT the global stop button — it only affects atmosphere
+- Must survive `render()` re-renders: rebind after each render call (same pattern as `_bindStopButton()`)
+
+### `_updateAtmosphereButton()` helper
+
+Called by `startAtmosphere()`, `stopAtmosphere()`, and after blob plays:
+```js
+_updateAtmosphereButton() {
+  const btn = document.getElementById('atmosphere-toggle-btn');
+  if (!btn) return;
+  const isPlaying = !!this._atmosphereAudio;
+  btn.textContent = isPlaying ? '■ Stop Crowd' : '▶ Start Crowd';
+  btn.classList.toggle('active', isPlaying);
+}
+```
+
+---
+
+## Interaction Matrix
+
+| Event | Effect on atmosphere | Rationale |
+|-------|---------------------|-----------|
+| ▶ PLAY pressed | No effect | Atmosphere is background — persists through announcements |
+| Goal → goal horn plays | No effect | Both tracks play simultaneously (stadium experience) |
+| Player tapped → walkup plays | No effect | Walkup overlays atmosphere |
+| TIMEOUT → timeout music plays | No effect | Timeout music overlays crowd ambience |
+| "■ Stop All Music" button | `stopMusic()` + `stopAtmosphere()` | Operator emergency stop |
+| "■ Stop Crowd" toggle | `stopAtmosphere()` only | Operator intentionally ends ambience |
+| `stopMusic()` called programmatically | No effect on atmosphere | Walkup/goal horn/timeout stop; crowd continues |
+
+---
+
+## `.local/` Config Note
+
+Issue text says "Config lives in `.local/` gitignored structure." In practice, this refers to the pattern already in use: audio files are stored in **IndexedDB** (browser-local, never committed, team-specific). The new atmosphere file follows the same pattern — no changes to `.local/` directory structure or git ignore rules required.
+
+---
+
+## Files Engineering Will Touch
+
+| File | Change |
+|------|--------|
+| `js/audio-storage.js` | Add `atmosphere: () => 'atmosphere'` to `CUE_KEYS` |
+| `js/music-manager.js` | Add `_atmosphereAudio/Url/Source/Gain/Volume` state; add `startAtmosphere()`, `stopAtmosphere()`, `_playAtmosphereBlob()`, `_updateAtmosphereButton()`; add atmosphere card to `render()`; update stop-all button to also call `stopAtmosphere()` |
+| `css/style.css` | Add `.atmosphere-controls`, `.atmosphere-toggle-btn`, `.atmosphere-toggle-btn.active`, `.atmosphere-volume-row` styles |
+| `history.md` | Update after Engineering ships |
+
+**No changes needed:** `app.js`, `sequence-builder.js`, `index.html` (music tab is dynamic), test files.
+
+---
+
+## Risk Flags
+
+### Web Audio + MediaElementSource quirk
+Each call to `ctx.createMediaElementSource(audio)` binds the `<Audio>` element to the context permanently. Calling it again on the same element after stop/restart throws a `DOMException`. The `_playAtmosphereBlob()` method must create a fresh `new Audio(url)` on every start (same pattern already used in `_playBlob()` — this is correct).
+
+### Multiple AudioContext instances
+`audioManager.getContext()` returns the same singleton context (or resumes a suspended one). Both `_activeAudio` and `_atmosphereAudio` route through the same context — this is intentional and correct.
+
+### iOS Safari autoplay
+On iOS, audio requires a user gesture to begin. Both tracks must be started from a button click event (not programmatically). The atmosphere "▶ Start Crowd" button satisfies this. No async gaps between click and `audio.play()`.
+
+### Concurrent MediaElement sources + StereoPanner
+Web Audio supports multiple concurrent `MediaElementSource` nodes routed through independent `StereoPanner` nodes to the same destination. This is standard and well-supported in all target browsers (Chrome, Safari, Firefox on tablet).
+
+---
+
+## Semver Classification
+
+**MINOR** — additive feature, no API or behavior changes to existing cues.
+
+---
+
+## Priority
+
+**P1** — Atmosphere is the only feature gap in issue #10. The other three cues are already shipped.
+
+---
+---
+
+# Research: Issue #8 — Multi-Sport Config + Action Editor (Archived)
+<!-- NOTE: This section was written for issue #8 and is kept for historical context only. -->
+<!-- Issue #8 is CLOSED. All work is complete as of 2026-04-17. -->
+
 # ~~SUPERSEDED~~ See updated analysis below
 
 ---
@@ -358,4 +655,3 @@ Alternatively, consider a GitHub Pages deploy action (`.github/workflows/deploy.
 1. Work on `agent/8` branch only — do NOT commit to `main`
 2. Verify `git status` is clean before starting
 3. Let the dispatcher handle the merge after QA approval
-
