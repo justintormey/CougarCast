@@ -1,3 +1,111 @@
+# QA Report — Issue #12: textColor field in custom action editor
+**Date:** 2026-04-18
+**Reviewer:** QA Agent
+**Commit reviewed:** e8339fb
+**Tests:** 59/59 passing
+
+---
+
+## Summary
+
+**PASS** — The "Dark text" checkbox is correctly implemented across both the existing-row template and the add-new-row template, correctly pre-populates from saved state, correctly persists via `_saveActionsFromEditor()`, and live-previews through the existing `input` event listener. No critical, high, or medium findings.
+
+---
+
+## Feature Completeness Checklist
+
+| Requirement (from issue #12) | Status | Notes |
+|------------------------------|--------|-------|
+| Checkbox added to `_buildActionEditorHtml()` row template | PASS | `app.js:454-456` |
+| Checkbox added to `_bindActionEditorEvents()` new-row template | PASS | `app.js:543-545` |
+| Pre-populate checked state from saved `textColor` | PASS | `(a.textColor && a.textColor !== 'white') ? ' checked' : ''` |
+| `_saveActionsFromEditor()` captures `textColor` | PASS | `app.js:585` — `?.checked ? '#000' : 'white'` |
+| New-row defaults to unchecked (white text) | PASS | No `checked` attribute in add-row template |
+| Live preview triggers without extra wiring | PASS | `list.addEventListener('input', ...)` fires on checkbox `change` in modern browsers |
+| `updateActionButtons()` reads `textColor` correctly | PASS | `a.textColor \|\| 'white'` fallback at `app.js:761` |
+| CSS styles for label | PASS | `.action-dark-text-label` in `css/style.css:1173-1182` |
+| CHANGELOG entry added | PASS | Entry in [Unreleased] Added section |
+| `history.md` updated | PASS | Issue #12 marked complete in Unfinished Work; session log added |
+
+---
+
+## Correctness Review
+
+### Pre-population condition
+
+```js
+${(a.textColor && a.textColor !== 'white') ? ' checked' : ''}
+```
+
+- `a.textColor === '#000'` → checked ✅
+- `a.textColor === 'white'` → unchecked ✅
+- `a.textColor === undefined/null` → unchecked (falsy) ✅
+- `a.textColor === ''` → unchecked (falsy) ✅
+- `a.textColor === 'black'` → checked (non-white, non-falsy) — normalizes to `'#000'` on next save ✅
+
+Edge case: any exotic textColor string (e.g., `'#333'`) from a data-import would display as checked and be normalized to `'#000'` on save. This is correct behavior for the binary checkbox model and a benign data migration.
+
+### Save logic
+
+```js
+textColor: row.querySelector('.action-text-dark-input')?.checked ? '#000' : 'white',
+```
+
+- Optional chaining: if selector returns `null` (shouldn't occur in practice), `undefined?.checked` is `undefined` (falsy) → defaults to `'white'`. Safe. ✅
+- Produces only `'#000'` or `'white'` — matches what `updateActionButtons()` expects. ✅
+
+### Live preview
+
+`list.addEventListener('input', ...)` at `app.js:564` covers the checkbox. The `input` event fires on checkbox state change in all browsers targeting HTML5 (Chrome 79+, Firefox 77+, Safari 14+). Given the live-sports tablet deployment context, modern browsers are assumed. ✅
+
+### `updateActionButtons()` fallback
+
+`a.textColor || 'white'` at `app.js:761` covers any action (preset or custom) that lacks a `textColor` field. New custom actions written by `_saveActionsFromEditor()` always have `textColor` set — no reliance on this fallback. ✅
+
+---
+
+## Security Review
+
+No new attack surface. The checkbox is a boolean; it cannot inject HTML. The `textColor` value output is always the literal string `'#000'` or `'white'` — neither is user-supplied text. The `style="...;color:${textColor}"` injection site is completely safe: values are hardcoded constants, not user input.
+
+---
+
+## CSS Review
+
+`.action-dark-text-label` correctly uses design tokens (`var(--text-secondary)`), `white-space: nowrap` prevents wrapping in the row layout, `cursor: pointer` + `user-select: none` improve touch UX on tablets. No hardcoded colors or magic numbers.
+
+**Minor observation (non-blocking):** Class naming is slightly inconsistent: the label element uses `.action-dark-text-label` (`dark-text` ordering) while the checkbox input uses `.action-text-dark-input` (`text-dark` ordering). This is a cosmetic note — both selectors are used consistently in JS and there is no functional issue.
+
+---
+
+## Semver Assessment
+
+Confirmed MINOR — additive UI field, no behavior change for existing actions, no breaking API changes. Correct.
+
+---
+
+## Test Coverage
+
+59/59 tests pass. The checkbox is DOM/UI layer — outside Vitest's Node environment. No new pure logic was added. Consistent with the existing coverage strategy for editor UI.
+
+---
+
+## Verdict
+
+**PASS.** The `textColor` field is correctly captured, correctly persisted, correctly pre-populated, and correctly live-previewed. The implementation is minimal and consistent with the Option A recommendation in the issue. No blockers.
+
+No follow-up issues required.
+
+---
+
+##VERDICT##
+DECISION: PASS
+ROUTE: Done
+REASON: Feature complete, correct, and secure. 59/59 tests pass. No critical, high, or medium findings. One cosmetic/non-blocking class-naming inconsistency noted.
+##END##
+
+---
+
 # QA Report — Issue #10: Music Cues System (Atmosphere Loop)
 
 **Date:** 2026-04-18
