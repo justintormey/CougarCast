@@ -1,3 +1,62 @@
+# Skeptic Review — Issue #10 (Music Cues System — Atmosphere Loop) — Engineering Pass
+**Date:** 2026-04-17  
+**Stage:** Engineering output verification (second Skeptic pass)  
+**Commit reviewed:** none — no Engineering commits found
+
+---
+
+## Verification Results
+
+### Claim to verify: Engineering implemented atmosphere loop per research spec
+
+**Expected artifacts:**
+- `_atmosphereAudio` property in `js/music-manager.js`
+- `startAtmosphere()` / `stopAtmosphere()` methods in `js/music-manager.js`
+- `CUE_KEYS.atmosphere` key in `js/audio-storage.js`
+- UI toggle in the Music tab (rendered by `MusicManager.render()`)
+- `stopAtmosphere()` wired into "Stop All Music" button
+
+**Actual findings:**
+
+```
+grep -n "atmosphere" js/music-manager.js  → 0 results
+grep -n "atmosphere" js/audio-storage.js  → 0 results
+```
+
+`CUE_KEYS` in `audio-storage.js` (lines 81–86):
+```js
+export const CUE_KEYS = {
+  goalHorn: () => 'goal-horn',
+  timeout: () => 'timeout',
+  walkup: (team, number) => `walkup-${team}-${number}`,
+};
+// no atmosphere key
+```
+
+`js/music-manager.js` is 330 lines. No `_atmosphereAudio`, no `startAtmosphere`, no `stopAtmosphere`, no atmosphere UI toggle.
+
+`git log main..agent/CougarCast-10` → empty. The branch has zero commits ahead of main.
+
+**Engineering delivered nothing.**
+
+---
+
+## Verdict: REJECT — Route back to Engineering
+
+The previous Skeptic pass (commit `24e8898`) approved Research and routed to Engineering. No Engineering commits landed. The branch is at the same state as main. The atmosphere loop feature is entirely absent from the codebase.
+
+Engineering must implement:
+1. `CUE_KEYS.atmosphere` key in `audio-storage.js`
+2. `_atmosphereAudio` property, `startAtmosphere()`, `stopAtmosphere()` in `music-manager.js`
+3. Atmosphere loop uses a separate `_atmosphereAudio` node (NOT `_activeAudio`) — `stopMusic()` must NOT kill atmosphere
+4. StereoPanner set to `1` (right/PA channel), GainNode at `0.4`
+5. Fresh `new Audio(url)` on every `startAtmosphere()` call (MediaElementSource quirk)
+6. UI toggle in `MusicManager.render()` music tab (upload button + play/stop toggle)
+7. `stopAtmosphere()` wired alongside `stopMusic()` in the "Stop All Music" button
+8. All existing 59 tests must still pass; new tests for atmosphere behaviors preferred
+
+---
+
 # Skeptic Review — Issue #10 (Music Cues System — Atmosphere Loop)
 **Date:** 2026-04-17  
 **Stage:** Research output verification  
