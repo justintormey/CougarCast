@@ -10,6 +10,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Atmosphere / crowd ambient loop — fourth and final PA audio layer (issue #10). Runs on a separate audio graph from the event-triggered cue track; persists through goal horns, walkup songs, and TTS announcements; manually started/stopped via the Music tab; volume-controlled via a live-gain slider (no restart required). Stored in IndexedDB alongside other cues.
 - Custom sport action button editor — operators using the "Custom" sport type can now add, remove, rename, recolor, and set point values on action buttons directly from the Settings modal (issue #8)
 - `_activeActions()` method mirrors `_activeSegments()` pattern — custom actions persist via `gameState.customActions[]` and auto-clear when switching back to a preset sport
 - Editable period/segment editor for all sports — add, remove, and rename periods; edits apply per-game via `gameState.customSegments` without permanently overriding the sport preset (issue #8)

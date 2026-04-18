@@ -52,8 +52,9 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 ### Immediate Next Steps
 - Live demo at `demo.justintormey.com/cougarcast/` — no GitHub Pages or deploy script set up yet; deployment is manual via Half Bakery deployer + CloudFront config in `.local/`
 - ~~Add `escHtml()` utility~~ — done in issue #11; app.js sites escaped; 3 sibling-module sites remain (see issue #14)
-- Export `escHtml()` to shared `utils.js` and patch remaining unescaped innerHTML sites in `roster.js` (player display), `sequence-builder.js` (chip labels), and `announcements.js` (item titles) — issue #14
+- Export `escHtml()` to shared `utils.js` and patch remaining unescaped innerHTML sites in `roster.js` (player display), `sequence-builder.js` (chip labels), `announcements.js` (item titles), **and `music-manager.js`** (player name/number and team name in walkup section — QA finding M1 from issue #10) — issue #14
 - Add `textColor` input to custom action editor rows — operators cannot currently set dark-text buttons (e.g., yellow button + black text); preset actions like YELLOW CARD use `textColor: '#000'` but the custom editor defaults to white — issue #12
+- Panner node cleanup (low priority): store `_atmospherePanner`, `_activePanner`, `_previewPanner` references and call `.disconnect()` in `stopAtmosphere()`, `stopMusic()`, and `_previewBlob()` teardown paths — accumulates orphaned nodes in the Web Audio graph over many start/stop cycles; bounded by session duration, no data loss (QA finding L2 from issue #10)
 
 ### Future Enhancements
 - Action editor for preset sports (currently only available for Custom sport type) — operators on e.g. Football who want to add a "SAFETY" button must switch to Custom and lose preset segment defaults
@@ -101,6 +102,24 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 ---
 
 ## Session Log
+
+### 2026-04-18 — Issue #10: Docs — CHANGELOG and history sync
+
+**Work:** Documented atmosphere loop feature completion (the final piece of issue #10). Updated CHANGELOG.md [Unreleased] with the atmosphere loop entry. Updated Unfinished Work in history.md with two QA-derived actionable items: expand issue #14 scope to include music-manager.js walkup innerHTML sites (QA M1), and panner node disconnect cleanup (QA L2, low priority). Music cues system (all four layers: goal horn, timeout, walkup, atmosphere) is fully complete as of commit 7ea6f98.
+
+**Files changed:**
+- `CHANGELOG.md` — Added atmosphere loop entry to [Unreleased] Added section
+- `history.md` — Expanded issue #14 action item with music-manager.js sites; added panner node cleanup item
+
+**Architecture note:** The atmosphere track runs on a completely independent audio graph from the event-triggered cue track (`_activeAudio` vs. `_atmosphereAudio`). `stopMusic()` — called via `onPlayFired` on every ▶ PLAY press — is intentionally isolated to the cue track. Atmosphere survives through all game events and is only killed by "Stop All Music" or the dedicated "■ Stop" toggle on the Atmosphere card.
+
+**QA findings from commit 91765bb (non-blocking, routed to existing issues):**
+- M1: Unescaped player name/number/team name in `music-manager.js` walkup section innerHTML (self-XSS; same class as issue #14 — expand its scope)
+- L2: Atmosphere panner node not stored/disconnected in `stopAtmosphere()` — orphaned nodes accumulate over long sessions; low practical risk given bounded session duration
+
+**Status:** Issue #10 fully complete. 59/59 tests pass.
+
+---
 
 ### 2026-04-17 — Issue #10: Atmosphere / ambient crowd loop
 
