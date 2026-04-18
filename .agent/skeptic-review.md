@@ -1,3 +1,81 @@
+# Skeptic Review — Issue #10 (Music Cues System — Atmosphere Loop)
+**Date:** 2026-04-17  
+**Stage:** Research output verification  
+**Commit reviewed:** 42e5da0
+
+---
+
+## Verification Results
+
+### Claim 1: "Goal horn, timeout, walkup already ship — atmosphere is the only gap" — CONFIRMED
+
+Direct code audit:
+- `MusicManager.playGoalHorn()` at `js/music-manager.js:35` — confirmed exists
+- `MusicManager.playTimeout()` at `js/music-manager.js:41` — confirmed exists
+- `MusicManager.playWalkup(team, number)` at `js/music-manager.js:47` — confirmed exists
+- `CUE_KEYS` in `js/audio-storage.js` has `goalHorn`, `timeout`, `walkup` — no `atmosphere` key
+- No `_atmosphereAudio`, `startAtmosphere`, `stopAtmosphere`, `_playAtmosphereBlob` anywhere in codebase
+
+**Atmosphere is not implemented. Research claim is accurate.**
+
+### Claim 2: "A second independent audio track is required because _playBlob() calls stopMusic() first" — CONFIRMED
+
+`js/music-manager.js:70-71`:
+```js
+async _playBlob(blob, loop = false) {
+  this.stopMusic();
+```
+And `stopMusic()` at lines 53-57 kills `_activeAudio`. Every event-triggered cue goes through `_playBlob()`. Any atmosphere loop placed in `_activeAudio` would be killed on every goal, timeout, and walkup — unusable.
+
+**Architecture requirement (separate `_atmosphereAudio`) is correctly derived.**
+
+### Claim 3: "Stop All Music button only calls stopMusic() — needs stopAtmosphere() added" — CONFIRMED
+
+`js/music-manager.js:320`:
+```js
+newBtn.addEventListener('click', () => this.stopMusic());
+```
+Only one call. Research correctly flags this needs `stopAtmosphere()` added alongside.
+
+### Claim 4: "Atmosphere should route to right (PA) channel via StereoPanner at reduced gain" — CONFIRMED AGAINST PATTERN
+
+Existing PA cues (`_playBlob`):
+```js
+const gain = ctx.createGain();
+gain.gain.value = 1.0;
+const panner = ctx.createStereoPanner();
+panner.pan.value = 1; // right = PA channel
+```
+Research spec matches exactly, with `gain.gain.value = 0.4` (reduced for background level) and `panner.pan.value = 1`.
+
+### Claim 5: "MediaElementSource quirk — must create fresh Audio on every start" — CONFIRMED AGAINST PATTERN
+
+`_playBlob()` at lines 73-88 creates `new Audio(url)` every call after `stopMusic()`. Research correctly calls this out as a required pattern for atmosphere too (can't reuse the same `<Audio>` element after a `ctx.createMediaElementSource()` call).
+
+### Claim 6: "Files Engineering will touch: audio-storage.js, music-manager.js, css/style.css" — VERIFIED ACCURATE
+
+No other files need changes. `app.js`, `sequence-builder.js`, `index.html` are not affected (music tab renders dynamically from `MusicManager.render()`). Storage pattern (IndexedDB via AudioStorage) requires only a new key string — no schema migration.
+
+---
+
+## Research Quality Assessment
+
+Research is solid and engineering-ready:
+- All four existing cues verified against actual code (not assumptions)
+- Single remaining gap correctly identified with technical justification
+- Architecture spec matches established Web Audio patterns already in the codebase
+- Risk flags (MediaElementSource quirk, iOS autoplay, concurrent nodes) are real and relevant
+- Implementation code samples directly mirror existing `_playBlob()` pattern
+- Interaction matrix is correct — `stopMusic()` must NOT kill atmosphere; only the toggle and "Stop All" should
+
+No hallucinations. No scope inflation. No missing gaps.
+
+---
+
+## Verdict: APPROVE — Route to Engineering
+
+---
+
 # Skeptic Review — Issue #8 (Multi-sport + Config Screen)
 **Date:** 2026-04-17  
 **Stage:** Research output verification  
