@@ -51,8 +51,9 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 
 ### Immediate Next Steps
 - Live demo at `demo.justintormey.com/cougarcast/` — no GitHub Pages or deploy script set up yet; deployment is manual via Half Bakery deployer + CloudFront config in `.local/`
-- ~~Add `escHtml()` utility~~ — done in issue #11; all user-data innerHTML sites now escaped
-- Add `textColor` input to custom action editor rows — operators cannot currently set dark-text buttons (e.g., yellow button + black text); preset actions like YELLOW CARD use `textColor: '#000'` but the custom editor defaults to white
+- ~~Add `escHtml()` utility~~ — done in issue #11; app.js sites escaped; 3 sibling-module sites remain (see issue #14)
+- Export `escHtml()` to shared `utils.js` and patch remaining unescaped innerHTML sites in `roster.js` (player display), `sequence-builder.js` (chip labels), and `announcements.js` (item titles) — issue #14
+- Add `textColor` input to custom action editor rows — operators cannot currently set dark-text buttons (e.g., yellow button + black text); preset actions like YELLOW CARD use `textColor: '#000'` but the custom editor defaults to white — issue #12
 
 ### Future Enhancements
 - Action editor for preset sports (currently only available for Custom sport type) — operators on e.g. Football who want to add a "SAFETY" button must switch to Custom and lose preset segment defaults
@@ -109,6 +110,8 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 - `js/app.js` — Added `escHtml()` after imports; applied to: period chip innerHTML (`renderPeriodStrip`), action button innerHTML (`updateActionButtons`), roster `<input value=...>` fields (number, firstName, lastName, pronounce), segment editor `<input value=...>`, action editor label/id `<input value=...>`. Replaced all ad-hoc `.replace(/"/g, '&quot;')` calls with `escHtml()`.
 
 **Architecture:** Single utility function at module top level — no external dependency, no build step. Consistent `&amp;` → `&lt;` → `&gt;` → `&quot;` → `&#39;` ordering ensures `&` never double-encodes.
+
+**QA findings (commit 1e1ee8b):** 3 low-severity unescaped innerHTML sites in sibling modules not in issue scope — `roster.js` player display path, `sequence-builder.js` chip labels, `announcements.js` item titles. All self-XSS only. Filed as issue #14 (export `escHtml()` to shared `utils.js` and patch all three).
 
 **Status:** PATCH — no behavior change for well-formed input. 59/59 tests pass.
 
