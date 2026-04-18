@@ -53,7 +53,7 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 - Live demo at `demo.justintormey.com/cougarcast/` — no GitHub Pages or deploy script set up yet; deployment is manual via Half Bakery deployer + CloudFront config in `.local/`
 - ~~Add `escHtml()` utility~~ — done in issue #11; app.js sites escaped; 3 sibling-module sites remain (see issue #14)
 - Export `escHtml()` to shared `utils.js` and patch remaining unescaped innerHTML sites in `roster.js` (player display), `sequence-builder.js` (chip labels), `announcements.js` (item titles), **and `music-manager.js`** (player name/number and team name in walkup section — QA finding M1 from issue #10) — issue #14
-- Add `textColor` input to custom action editor rows — operators cannot currently set dark-text buttons (e.g., yellow button + black text); preset actions like YELLOW CARD use `textColor: '#000'` but the custom editor defaults to white — issue #12
+- ~~Add `textColor` input to custom action editor rows~~ — done in issue #12; "Dark text" checkbox added to all action editor rows (both existing and newly-added); `_saveActionsFromEditor()` writes `textColor: '#000'` or `'white'`; existing rows pre-populate checked state from saved `textColor`
 - Panner node cleanup (low priority): store `_atmospherePanner`, `_activePanner`, `_previewPanner` references and call `.disconnect()` in `stopAtmosphere()`, `stopMusic()`, and `_previewBlob()` teardown paths — accumulates orphaned nodes in the Web Audio graph over many start/stop cycles; bounded by session duration, no data loss (QA finding L2 from issue #10)
 
 ### Future Enhancements
@@ -102,6 +102,25 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 ---
 
 ## Session Log
+
+### 2026-04-18 — Issue #12: textColor field in custom action editor
+
+**Work:** Added "Dark text" checkbox to each row in the custom action editor so operators can create dark-text buttons (e.g., yellow button + black text), matching how preset actions like YELLOW CARD already work.
+
+**Files changed:**
+- `js/app.js` — Added `<label class="action-dark-text-label">` with checkbox to `_buildActionEditorHtml()` row template (pre-populates `checked` from saved `textColor`); same checkbox added to the "add new row" inline template in `_bindActionEditorEvents()`; `_saveActionsFromEditor()` now captures `textColor: row.querySelector('.action-text-dark-input')?.checked ? '#000' : 'white'`.
+- `css/style.css` — Added `.action-dark-text-label` styles (flex, 12px font, secondary text color, whitespace nowrap).
+- `CHANGELOG.md` — Documented feature in [Unreleased] Added section.
+- `history.md` — Marked issue #12 complete in Unfinished Work; added this session log entry.
+
+**Architecture:**
+- Option A (checkbox) from the issue — covers 95% of real-world need (light vs. dark text on colored background). No free-form color picker overhead.
+- The existing `input` event listener in `_bindActionEditorEvents()` fires on checkbox `change` too, so live preview in `updateActionButtons()` works without any extra wiring.
+- `textColor` in `customActions[]` persists automatically through the existing `saveGame()` call — no new persistence code.
+
+**Status:** 59/59 tests pass. MINOR — additive UI field, no breaking changes.
+
+---
 
 ### 2026-04-18 — Issue #9: Auto period-end score announcement
 

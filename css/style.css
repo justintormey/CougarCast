@@ -1170,6 +1170,17 @@ body {
 
 .action-points-input:focus { border-color: var(--primary); outline: none; }
 
+.action-dark-text-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
 /* ─── Audio Bar: pulse-hint on auto-populate ─── */
 @keyframes pulse-hint {
   0%   { box-shadow: 0 0 0 0 rgba(105, 108, 255, 0.5); }

@@ -464,6 +464,9 @@ class App {
         <input type="text" class="action-id-input" value="${escHtml(a.id || '')}" placeholder="id" title="Behavior ID: 'goal'/'goal1'/'goal2'/'goal3' = score, 'timeout' = timeout cue, 'custom' = text prompt">
         <input type="color" class="action-color-input" value="${a.color || '#616161'}" title="Button color">
         <input type="number" class="action-points-input" value="${a.points || 0}" min="0" max="99" placeholder="pts" title="Points scored (0 = non-scoring)">
+        <label class="action-dark-text-label" title="Use dark (black) text on this button instead of white">
+          <input type="checkbox" class="action-text-dark-input"${(a.textColor && a.textColor !== 'white') ? ' checked' : ''}> Dark text
+        </label>
         <button type="button" class="segment-remove-btn action-remove-btn" data-index="${i}" title="Remove action">×</button>
       </div>`).join('');
 
@@ -550,6 +553,9 @@ class App {
         <input type="text" class="action-id-input" value="custom" placeholder="id" title="Behavior ID">
         <input type="color" class="action-color-input" value="#616161" title="Button color">
         <input type="number" class="action-points-input" value="0" min="0" max="99" placeholder="pts" title="Points scored">
+        <label class="action-dark-text-label" title="Use dark (black) text on this button instead of white">
+          <input type="checkbox" class="action-text-dark-input"> Dark text
+        </label>
         <button type="button" class="segment-remove-btn action-remove-btn" data-index="${idx}" title="Remove action">×</button>
       `;
       list.appendChild(div);
@@ -589,6 +595,7 @@ class App {
       label: row.querySelector('.action-label-input')?.value.trim() || 'ACTION',
       color: row.querySelector('.action-color-input')?.value || '#616161',
       points: parseInt(row.querySelector('.action-points-input')?.value) || 0,
+      textColor: row.querySelector('.action-text-dark-input')?.checked ? '#000' : 'white',
     })).filter(a => a.label);
     if (actions.length) this.gameState.customActions = actions;
   }
