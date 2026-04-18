@@ -51,7 +51,7 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 
 ### Immediate Next Steps
 - Live demo at `demo.justintormey.com/cougarcast/` — no GitHub Pages or deploy script set up yet; deployment is manual via Half Bakery deployer + CloudFront config in `.local/`
-- Add `escHtml()` utility and apply to all user-data innerHTML renders (action labels, period chips, roster fields) — self-XSS in current local-only deployment, but should be fixed before any hosted/multi-user version (see QA issue #8 finding M1)
+- ~~Add `escHtml()` utility~~ — done in issue #11; all user-data innerHTML sites now escaped
 - Add `textColor` input to custom action editor rows — operators cannot currently set dark-text buttons (e.g., yellow button + black text); preset actions like YELLOW CARD use `textColor: '#000'` but the custom editor defaults to white
 
 ### Future Enhancements
@@ -100,6 +100,19 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 ---
 
 ## Session Log
+
+### 2026-04-17 — Issue #11: Add escHtml() utility (QA M1)
+
+**Work:** Added `escHtml()` utility and applied it to all user-data innerHTML injection sites.
+
+**Files changed:**
+- `js/app.js` — Added `escHtml()` after imports; applied to: period chip innerHTML (`renderPeriodStrip`), action button innerHTML (`updateActionButtons`), roster `<input value=...>` fields (number, firstName, lastName, pronounce), segment editor `<input value=...>`, action editor label/id `<input value=...>`. Replaced all ad-hoc `.replace(/"/g, '&quot;')` calls with `escHtml()`.
+
+**Architecture:** Single utility function at module top level — no external dependency, no build step. Consistent `&amp;` → `&lt;` → `&gt;` → `&quot;` → `&#39;` ordering ensures `&` never double-encodes.
+
+**Status:** PATCH — no behavior change for well-formed input. 59/59 tests pass.
+
+---
 
 ### 2026-04-17 — Issue #8: Docs — CHANGELOG and history sync
 

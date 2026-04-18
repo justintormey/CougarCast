@@ -10,6 +10,20 @@ import { AudioManager } from './audio-manager.js';
 import { AnnouncementsManager } from './announcements.js';
 import { MusicManager } from './music-manager.js';
 
+/**
+ * Escape user-supplied strings before inserting into innerHTML.
+ * Prevents self-XSS in action labels, period chip names, and roster fields.
+ * & must be replaced first to avoid double-encoding subsequent replacements.
+ */
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const SPORT_PRESETS = {
   lacrosse: {
     label: 'Lacrosse',
@@ -282,7 +296,7 @@ class App {
 
     container.innerHTML = segments.map((seg, i) => {
       const active = i + 1 === current ? ' active' : '';
-      return `<button class="period-chip${active}" data-period="${i + 1}">${seg}</button>`;
+      return `<button class="period-chip${active}" data-period="${i + 1}">${escHtml(seg)}</button>`;
     }).join('');
 
     // Click a chip to jump to that period
@@ -393,7 +407,7 @@ class App {
     const rows = baseSegments.map((seg, i) => `
       <div class="segment-edit-row" data-index="${i}">
         <span class="segment-drag-handle">⠿</span>
-        <input type="text" class="segment-name-input" value="${seg.replace(/"/g, '&quot;')}" placeholder="e.g. Q1">
+        <input type="text" class="segment-name-input" value="${escHtml(seg)}" placeholder="e.g. Q1">
         <button type="button" class="segment-remove-btn" data-index="${i}" title="Remove">×</button>
       </div>`).join('');
 
@@ -419,8 +433,8 @@ class App {
     const activeActions = this._activeActions();
     const rows = activeActions.map((a, i) => `
       <div class="action-edit-row" data-index="${i}">
-        <input type="text" class="action-label-input" value="${(a.label || '').replace(/"/g, '&quot;')}" placeholder="Label" title="Button label">
-        <input type="text" class="action-id-input" value="${(a.id || '').replace(/"/g, '&quot;')}" placeholder="id" title="Behavior ID: 'goal'/'goal1'/'goal2'/'goal3' = score, 'timeout' = timeout cue, 'custom' = text prompt">
+        <input type="text" class="action-label-input" value="${escHtml(a.label || '')}" placeholder="Label" title="Button label">
+        <input type="text" class="action-id-input" value="${escHtml(a.id || '')}" placeholder="id" title="Behavior ID: 'goal'/'goal1'/'goal2'/'goal3' = score, 'timeout' = timeout cue, 'custom' = text prompt">
         <input type="color" class="action-color-input" value="${a.color || '#616161'}" title="Button color">
         <input type="number" class="action-points-input" value="${a.points || 0}" min="0" max="99" placeholder="pts" title="Points scored (0 = non-scoring)">
         <button type="button" class="segment-remove-btn action-remove-btn" data-index="${i}" title="Remove action">×</button>
@@ -598,11 +612,11 @@ class App {
       container.innerHTML = roster.map((p, i) => {
         const yearSelect = yearOptions.replace(`value="${p.year || ''}"`, `value="${p.year || ''}" selected`);
         return `<div class="player-edit-row" data-team="${team}" data-index="${i}">
-          <input type="text" class="num-input" value="${p.number}" placeholder="#" data-field="number">
-          <input type="text" class="name-input" value="${p.firstName}" placeholder="First" data-field="firstName">
-          <input type="text" class="name-input" value="${p.lastName}" placeholder="Last" data-field="lastName">
+          <input type="text" class="num-input" value="${escHtml(p.number)}" placeholder="#" data-field="number">
+          <input type="text" class="name-input" value="${escHtml(p.firstName)}" placeholder="First" data-field="firstName">
+          <input type="text" class="name-input" value="${escHtml(p.lastName)}" placeholder="Last" data-field="lastName">
           <select class="year-select" data-field="year">${yearSelect}</select>
-          <input type="text" class="pronounce-input" value="${p.pronounce || ''}" placeholder="Say as..." data-field="pronounce" title="Phonetic pronunciation (e.g., Nguyen → Win)">
+          <input type="text" class="pronounce-input" value="${escHtml(p.pronounce || '')}" placeholder="Say as..." data-field="pronounce" title="Phonetic pronunciation (e.g., Nguyen → Win)">
           <button class="player-remove-btn" data-team="${team}" data-index="${i}">&times;</button>
         </div>`;
       }).join('');
@@ -723,7 +737,7 @@ class App {
     actionBar.innerHTML = this._activeActions().map(a => {
       const textColor = a.textColor || 'white';
       const pts = a.points ? `data-points="${a.points}"` : '';
-      return `<button class="action-btn" data-action="${a.id}" ${pts} style="background:${a.color};color:${textColor}">${a.label}</button>`;
+      return `<button class="action-btn" data-action="${a.id}" ${pts} style="background:${a.color};color:${textColor}">${escHtml(a.label)}</button>`;
     }).join('');
     this.sequenceBuilder.bindActionButtons();
   }
