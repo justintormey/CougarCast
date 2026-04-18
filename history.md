@@ -178,6 +178,15 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 
 ---
 
+### 2026-04-18 — Issue #9: QA review — auto period-end score announcement
+
+**Result: PASS.** 59/59 tests pass. One low-severity finding (L1).
+
+**Findings:**
+- L1: Async race — if operator presses ▶ PLAY in the audio bar within ~1-2s of advancing a period, two concurrent TTS calls can overlap briefly on the PA channel. Low probability, low consequence (brief duplicate audio, no data loss). Fix: `_autoPlayInFlight` boolean guard in `_autoPlayPeriodScore()`. Not blocking.
+
+---
+
 ### 2026-04-18 — Issue #10: Docs — CHANGELOG and history sync
 
 **Work:** Documented atmosphere loop feature completion (the final piece of issue #10). Updated CHANGELOG.md [Unreleased] with the atmosphere loop entry. Updated Unfinished Work in history.md with two QA-derived actionable items: expand issue #14 scope to include music-manager.js walkup innerHTML sites (QA M1), and panner node disconnect cleanup (QA L2, low priority). Music cues system (all four layers: goal horn, timeout, walkup, atmosphere) is fully complete as of commit 7ea6f98.
