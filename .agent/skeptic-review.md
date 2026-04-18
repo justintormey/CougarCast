@@ -1,3 +1,61 @@
+# Skeptic Review — Issue #9 (Score Reporting & Automatic Period Announcements) — Engineering Pass
+**Date:** 2026-04-18  
+**Stage:** Engineering output verification  
+**Commit reviewed:** 0e8d5d1
+
+---
+
+## Verification Results
+
+### Claim 1: "_autoPlayPeriodScore() implemented and wired into changePeriod()" — CONFIRMED
+
+`js/app.js:258-272`: `_autoPlayPeriodScore(text)` exists. Guards: no text → return, no API key → return, no voice → return. Calls `this.tts.generateAudio(text, 'neutral')`, then `this.audioManager.play(audio)` on success, `console.warn` on failure.
+
+`js/app.js:231-237`: Wired into `changePeriod()` when `delta > 0`, after `generateScoreReport()` sets `this.sequenceBuilder.generatedText`. Correct: text is generated first, then passed to TTS.
+
+### Claim 2: "Routes to PA channel (right)" — CONFIRMED
+
+`js/audio-manager.js:65-68`: `play(audioBlob)` calls `playWithPan(audioBlob, 1, this.playVolume)` — pan=1 is right channel (PA). Consistent with all other PA cues.
+
+### Claim 3: "Configurable via Sport Config screen" — CONFIRMED
+
+`index.html:152-158`: Checkbox `id="auto-announce-period"` added to Sport Config settings group with descriptive hint text.
+
+`js/app.js:626`: Reads checkbox state on config open.
+`js/app.js:686`: Writes `gameState.autoAnnouncePeriodEnd` on save.
+
+### Claim 4: "Migration for older game states" — CONFIRMED
+
+`js/app.js:157-158`: `if (this.gameState.autoAnnouncePeriodEnd === undefined) this.gameState.autoAnnouncePeriodEnd = true;` — runs at every load, defaults to `true`. No crash on old data.
+
+### Data Lifecycle Audit
+
+- **Other writers**: `storage.saveGame(gameState)` at 5 sites, all serialize the entire gameState object — `autoAnnouncePeriodEnd` is included automatically.
+- **Live data**: Storage reads `JSON.parse(localStorage.getItem('ainnouncr_game'))` — arbitrary fields survive round-trip. Missing field handled by migration (line 158).
+- **Migration**: Present and idempotent. No invariant tightening — field is optional with safe default. Reader uses truthiness check (`if (this.gameState.autoAnnouncePeriodEnd)`), compatible with undefined/false/true.
+
+### Claim 5: "59/59 tests pass" — CONFIRMED
+
+Ran `npx vitest run` — 3 test files, 59 tests, all passed.
+
+### Natural Language Score Text — CONFIRMED
+
+`js/text-generator.js:203-238`: `generatePeriodScore()` produces templates like "End of the {period}. {homeTeam} {homeScore}, {awayTeam} {awayScore}." — matching the issue's example. Tie-score case covered (no "leads" when tied, consistent with closed bug #4/#6).
+
+---
+
+## Gap Assessment
+
+**Issue requirement: "quarters vs halves, period length"** — The parenthetical refers to what the existing segment editor already provides (Q1/Q2/Q3/Q4 vs 1H/2H). No new config UI was needed for that. The new work (the toggle) is correctly scoped.
+
+No gaps found. No hallucinations. Scope matches issue exactly.
+
+---
+
+## Verdict: APPROVE — Route to QA
+
+---
+
 # Skeptic Review — Issue #10 (Music Cues System — Atmosphere Loop) — Engineering Pass
 **Date:** 2026-04-17  
 **Stage:** Engineering output verification (second Skeptic pass)  
