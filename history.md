@@ -104,6 +104,22 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 
 ## Session Log
 
+### 2026-04-18 — Issue #20: Escape voice name and action.id in app.js innerHTML
+
+**Work:** Applied `escHtml()` to the two remaining unescaped innerHTML sites in `app.js`: `v.name` and `v.voice_id` in the voice-select dropdown built from the ElevenLabs API response, and `a.id` in the `data-action` attribute of action buttons.
+
+**Files changed:**
+- `js/app.js` — Line ~728: wrapped `v.name` (option text content) and `v.voice_id` (option value attribute) in `escHtml()`. Line ~771: wrapped `a.id` in `escHtml()` in the `data-action="${...}"` attribute.
+
+**Architecture:**
+- `escHtml(v.voice_id)` in the `value` attribute is safe: voice IDs are alphanumeric so no encoding occurs in practice, and the `savedVoice` comparison uses the raw unescaped string from `storage.getVoiceId()` — the selection logic is unaffected.
+- `a.id` is user-typed in the custom action editor (free-form), making it a legitimate escaping target unlike the structured `data-number` / `data-index` keys left unescaped in prior issues.
+- `escHtml()` is already imported at the top of `app.js` from `./utils.js` — no new imports needed.
+
+**Status:** PATCH — no behavior change for well-formed input. 59/59 tests pass. `escHtml()` coverage in `app.js` is now complete.
+
+---
+
 ### 2026-04-18 — Issue #19: Fix async race in _autoPlayPeriodScore()
 
 **Work:** Added `_autoPlayInFlight` boolean guard to `_autoPlayPeriodScore()` to prevent a double TTS call if the operator presses ▶ PLAY in the audio bar within the ~1-2s ElevenLabs round-trip window (QA L1 finding from issue #9).

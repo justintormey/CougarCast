@@ -725,7 +725,7 @@ class App {
 
     const savedVoice = this.storage.getVoiceId();
     select.innerHTML = voices.map(v =>
-      `<option value="${v.voice_id}" ${v.voice_id === savedVoice ? 'selected' : ''}>${v.name}</option>`
+      `<option value="${escHtml(v.voice_id)}" ${v.voice_id === savedVoice ? 'selected' : ''}>${escHtml(v.name)}</option>`
     ).join('');
   }
 
@@ -768,7 +768,7 @@ class App {
     actionBar.innerHTML = this._activeActions().map(a => {
       const textColor = a.textColor || 'white';
       const pts = a.points ? `data-points="${a.points}"` : '';
-      return `<button class="action-btn" data-action="${a.id}" ${pts} style="background:${a.color};color:${textColor}">${escHtml(a.label)}</button>`;
+      return `<button class="action-btn" data-action="${escHtml(a.id)}" ${pts} style="background:${a.color};color:${textColor}">${escHtml(a.label)}</button>`;
     }).join('');
     this.sequenceBuilder.bindActionButtons();
   }
