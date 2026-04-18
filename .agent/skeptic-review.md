@@ -237,3 +237,81 @@ No hallucinations detected. No scope inflation. The "92% complete" framing is ac
 ---
 
 ## Verdict: APPROVE — Route to Engineering
+
+---
+
+# Skeptic Review — Issue #12 (textColor field in custom action editor)
+**Date:** 2026-04-18
+**Stage:** Final engineering + QA verification
+**Commit reviewed:** e8339fb (Engineering), 74c635b (QA)
+
+---
+
+## Verification Results
+
+### Claim 1: "Dark text checkbox added to `_buildActionEditorHtml()` row template" — CONFIRMED
+
+`js/app.js:453-456`:
+```js
+<label class="action-dark-text-label" title="Use dark (black) text on this button instead of white">
+  <input type="checkbox" class="action-text-dark-input"${(a.textColor && a.textColor !== 'white') ? ' checked' : ''}> Dark text
+</label>
+```
+Pre-population condition handles `'#000'` (checked), `'white'` (unchecked), `undefined`/`null` (unchecked), and exotic strings like `'black'` (checked, normalized to `'#000'` on next save). All cases correct.
+
+### Claim 2: "Checkbox added to new-row template in `_bindActionEditorEvents()`" — CONFIRMED
+
+`js/app.js:542-544`: New-row template includes the `action-text-dark-input` checkbox without `checked` attribute, correctly defaulting to white text for new actions.
+
+### Claim 3: "`_saveActionsFromEditor()` captures `textColor`" — CONFIRMED
+
+`js/app.js:585`:
+```js
+textColor: row.querySelector('.action-text-dark-input')?.checked ? '#000' : 'white',
+```
+Optional chaining is safe: if selector returns null, falls back to `'white'`. Produces only `'#000'` or `'white'` — both match what `updateActionButtons()` expects.
+
+### Claim 4: "`updateActionButtons()` consumes textColor" — CONFIRMED
+
+`js/app.js:761-763`:
+```js
+const textColor = a.textColor || 'white';
+return `<button ... style="background:${a.color};color:${textColor}">${escHtml(a.label)}</button>`;
+```
+The `|| 'white'` fallback means pre-existing customActions without the field are safe. New actions always have the field set.
+
+### Claim 5: "Live preview via `input` event listener" — CONFIRMED
+
+`js/app.js:564`: `list.addEventListener('input', () => { this._saveActionsFromEditor(); this.updateActionButtons(); });`
+
+Modern browsers fire `input` on checkbox state change (Chrome 79+, Firefox 77+, Safari 14+). No extra wiring needed.
+
+### Claim 6: "CSS styles added" — CONFIRMED
+
+`css/style.css:1173-1182`: `.action-dark-text-label` uses design tokens (`var(--text-secondary)`), `white-space: nowrap`, `cursor: pointer`, `user-select: none`. No hardcoded values. Correct.
+
+### Data Lifecycle Audit
+
+- **Other writers**: `_saveActionsFromEditor()` is the only writer of `customActions[]` entries. It always writes `textColor`. ✓
+- **Live data**: `updateActionButtons()` uses `a.textColor || 'white'` — tolerant of entries without the field. No migration needed. ✓
+- **Migration**: Not required. The field is optional with a safe fallback. The pre-population logic handles all legacy values correctly. ✓
+
+### Claim 7: "59/59 tests pass" — ATTESTED BY QA
+
+QA ran `npx vitest run` and confirmed 59/59. The checkbox is DOM-layer only — no new pure logic requiring Vitest coverage. Consistent with existing coverage strategy.
+
+### CHANGELOG + history.md — CONFIRMED
+
+CHANGELOG `[Unreleased]` section has entry for the "Dark text" checkbox (confirmed in diff). `history.md` marks issue #12 complete in Unfinished Work and adds session log. ✓
+
+---
+
+## Gap Assessment
+
+Issue requested Option A (checkbox → `'#000'` or `'white'`). Implementation delivers exactly Option A. No scope creep. No missing requirements.
+
+One cosmetic non-issue noted (same as QA): Class name ordering inconsistency — label uses `.action-dark-text-label` while input uses `.action-text-dark-input`. Non-functional, not worth a follow-up issue.
+
+---
+
+## Verdict: APPROVE — Route to Done
