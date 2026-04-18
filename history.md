@@ -102,6 +102,23 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 
 ## Session Log
 
+### 2026-04-17 — Issue #10: Atmosphere / ambient crowd loop
+
+**Work:** Added atmosphere audio loop to the music cues system — the fourth and final PA layer alongside goal horn, timeout, and walkup.
+
+**Files changed:**
+- `js/audio-storage.js` — Added `atmosphere: () => 'atmosphere'` to `CUE_KEYS`.
+- `js/music-manager.js` — Added separate `_atmosphereAudio/_atmosphereUrl/_atmosphereSource/_atmosphereGain/_atmosphereVolume` track (independent of `_activeAudio` cue track). Added `playAtmosphere()`, `stopAtmosphere()`, `_renderAtmosphereCard()`, `_bindAtmosphereCard()`, `_updateAtmosphereCard()` methods. Updated `_bindStopButton()` to stop both cue and atmosphere; `_updateStopButton()` now reflects either track being active.
+- `css/style.css` — Added `.atmosphere-volume-row`, `.atmosphere-vol-label`, `.atmosphere-vol-slider`, `.atmosphere-vol-value`, `.music-btn.play-atm`, `.music-btn.stop-atm` styles.
+- `index.html` — CSS cache-bust v12→v13.
+
+**Architecture:**
+- Atmosphere runs on a **separate audio graph** from the event-triggered cue track. `stopMusic()` (called on `onPlayFired`) only kills the cue track — atmosphere keeps looping. `stopAtmosphere()` is a dedicated tear-down path.
+- Both tracks share the same Web Audio context → `StereoPannerNode(pan=+1)` for consistent PA-channel routing.
+- Volume control via `GainNode` wired to a range slider. Volume updates `gain.value` live while playing without stopping/restarting.
+- The "Stop All Music" kill switch calls both `stopMusic()` + `stopAtmosphere()`.
+- 59/59 tests pass (no new test targets — atmosphere is UI/audio-hardware layer with no testable pure logic).
+
 ### 2026-04-17 — Issue #11: Add escHtml() utility (QA M1)
 
 **Work:** Added `escHtml()` utility and applied it to all user-data innerHTML injection sites.

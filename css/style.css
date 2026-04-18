@@ -1333,6 +1333,65 @@ body {
   50% { opacity: 0.75; }
 }
 
+/* ─── Atmosphere Controls ─── */
+.atmosphere-volume-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-light);
+}
+
+.atmosphere-vol-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 52px;
+  flex-shrink: 0;
+}
+
+.atmosphere-vol-slider {
+  flex: 1;
+  accent-color: var(--primary);
+  cursor: pointer;
+  height: 4px;
+}
+
+.atmosphere-vol-slider:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.atmosphere-vol-value {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  min-width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.music-btn.play-atm {
+  background: var(--success-light);
+  border: 1px solid var(--success);
+  color: #56ca00;
+}
+
+.music-btn.play-atm:hover { background: var(--success); color: white; }
+.music-btn.play-atm:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.music-btn.stop-atm {
+  background: var(--danger);
+  border: 1px solid var(--danger);
+  color: white;
+  animation: pulse-stop 1.5s ease-in-out infinite;
+}
+
+.music-btn.stop-atm:hover { opacity: 0.85; }
+
 /* ─── Walkup Music ─── */
 .walkup-team-block {
   background: var(--bg-card);

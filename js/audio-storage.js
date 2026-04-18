@@ -81,5 +81,6 @@ export class AudioStorage {
 export const CUE_KEYS = {
   goalHorn: () => 'goal-horn',
   timeout: () => 'timeout',
+  atmosphere: () => 'atmosphere',
   walkup: (team, number) => `walkup-${team}-${number}`,
 };

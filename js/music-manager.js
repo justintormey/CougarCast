@@ -1,5 +1,5 @@
 // Music Manager — cue file upload, storage, and playback
-// Handles: goal horn, timeout music, per-player walkup songs
+// Handles: goal horn, timeout music, atmosphere loop, per-player walkup songs
 //
 // Audio routing: all music cues play on the RIGHT channel (PA/broadcast)
 // via the shared Web Audio context + StereoPannerNode. Consistent with
@@ -19,10 +19,17 @@ export class MusicManager {
     // Track which cues have stored blobs (populated async at init)
     this.cueStatus = {}; // key → boolean
 
-    // Active music playback
+    // Active music playback (cue track — goal horn, timeout, walkup)
     this._activeAudio = null;
     this._activeUrl = null;
     this._activeSource = null;
+
+    // Atmosphere track — separate from cue track, runs independently
+    this._atmosphereAudio = null;
+    this._atmosphereUrl = null;
+    this._atmosphereSource = null;
+    this._atmosphereGain = null;
+    this._atmosphereVolume = 0.35; // default 35% — ambient under announcements
   }
 
   setGameState(gs) {
@@ -50,6 +57,7 @@ export class MusicManager {
     await this._playBlob(blob, true); // loop until play/clear
   }
 
+  // Stop the active cue track (walkup, goal horn, timeout). Does NOT affect atmosphere.
   stopMusic() {
     if (this._activeAudio) {
       this._activeAudio.pause();
@@ -64,6 +72,62 @@ export class MusicManager {
       this._activeSource = null;
     }
     this._updateStopButton();
+  }
+
+  // Stop the atmosphere loop only
+  stopAtmosphere() {
+    if (this._atmosphereAudio) {
+      this._atmosphereAudio.pause();
+      this._atmosphereAudio = null;
+    }
+    if (this._atmosphereUrl) {
+      URL.revokeObjectURL(this._atmosphereUrl);
+      this._atmosphereUrl = null;
+    }
+    if (this._atmosphereSource) {
+      try { this._atmosphereSource.disconnect(); } catch { /* already gone */ }
+      this._atmosphereSource = null;
+    }
+    this._atmosphereGain = null;
+    this._updateStopButton();
+    this._updateAtmosphereCard();
+  }
+
+  // Play the atmosphere loop through a dedicated gain node on the PA (right) channel
+  async playAtmosphere() {
+    const blob = await this.audioStorage.load(CUE_KEYS.atmosphere());
+    if (!blob) return;
+
+    this.stopAtmosphere();
+
+    const ctx = this.audioManager.getContext();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.loop = true;
+
+    const source = ctx.createMediaElementSource(audio);
+    const gain = ctx.createGain();
+    gain.gain.value = this._atmosphereVolume;
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = 1; // right = PA channel
+
+    source.connect(gain);
+    gain.connect(panner);
+    panner.connect(ctx.destination);
+
+    this._atmosphereAudio = audio;
+    this._atmosphereUrl = url;
+    this._atmosphereSource = source;
+    this._atmosphereGain = gain;
+
+    try {
+      await audio.play();
+      this._updateStopButton();
+      this._updateAtmosphereCard();
+    } catch (err) {
+      // Autoplay blocked — Web Audio context may need resuming
+      this.stopAtmosphere();
+    }
   }
 
   // Play a blob through Web Audio (right/PA channel), optionally looping
@@ -163,6 +227,9 @@ export class MusicManager {
 
     const goalHorn = await this.audioStorage.has(CUE_KEYS.goalHorn());
     const timeout = await this.audioStorage.has(CUE_KEYS.timeout());
+    const atmosphere = await this.audioStorage.has(CUE_KEYS.atmosphere());
+
+    const anyActive = !!this._activeAudio || !!this._atmosphereAudio;
 
     container.innerHTML = `
       <div class="music-container">
@@ -172,7 +239,12 @@ export class MusicManager {
         ${this._renderCueCard('goal-horn', '🎺', 'Goal Horn', 'Plays once on every goal', goalHorn)}
         ${this._renderCueCard('timeout-music', '⏸', 'Timeout Music', 'Loops during timeouts — tap Stop to end', timeout)}
 
-        <button id="stop-music-btn" class="stop-music-btn${this._activeAudio ? ' active' : ''}">■ Stop All Music</button>
+        <div class="music-section-label" style="margin-top:24px;">Atmosphere</div>
+        <div class="music-hint-text">Crowd noise loop — start manually at gate open, runs on PA alongside announcements.</div>
+
+        ${this._renderAtmosphereCard(atmosphere)}
+
+        <button id="stop-music-btn" class="stop-music-btn${anyActive ? ' active' : ''}">■ Stop All Music</button>
 
         <div class="music-section-label" style="margin-top:24px;">Walkup Songs</div>
         <div class="music-hint-text">Plays on PA when a player is tapped. Stops automatically when ▶ PLAY is pressed.</div>
@@ -183,6 +255,7 @@ export class MusicManager {
 
     this._bindCueCard('goal-horn', CUE_KEYS.goalHorn());
     this._bindCueCard('timeout-music', CUE_KEYS.timeout());
+    this._bindAtmosphereCard();
     this._bindWalkupEvents();
     this._bindStopButton();
   }
@@ -204,6 +277,35 @@ export class MusicManager {
           <button class="music-btn clear danger" data-cue="${id}" ${!hasFile ? 'disabled' : ''}>✕ Clear</button>
         </div>
         <input type="file" class="music-file-input" id="file-${id}" data-cue="${id}" accept="audio/*" style="display:none">
+      </div>
+    `;
+  }
+
+  _renderAtmosphereCard(hasFile) {
+    const isPlaying = !!this._atmosphereAudio;
+    const vol = Math.round(this._atmosphereVolume * 100);
+    return `
+      <div class="music-card" id="card-atmosphere">
+        <div class="music-card-header">
+          <span class="music-card-icon">🏟️</span>
+          <div class="music-card-meta">
+            <div class="music-card-title">Atmosphere</div>
+            <div class="music-card-sub">Crowd noise — runs alongside announcements, adjust volume as needed</div>
+          </div>
+          <span class="music-status-badge ${hasFile ? 'loaded' : 'empty'}">${hasFile ? 'Loaded' : 'No file'}</span>
+        </div>
+        <div class="music-card-actions">
+          <button class="music-btn upload" data-cue="atmosphere">⬆ Upload</button>
+          <button class="music-btn preview" data-cue="atmosphere" ${!hasFile ? 'disabled' : ''}>▶ Preview</button>
+          <button class="music-btn ${isPlaying ? 'stop-atm' : 'play-atm'}" data-cue="atmosphere" ${!hasFile ? 'disabled' : ''}>${isPlaying ? '■ Stop' : '▶ Play'}</button>
+          <button class="music-btn clear danger" data-cue="atmosphere" ${!hasFile ? 'disabled' : ''}>✕ Clear</button>
+        </div>
+        <div class="atmosphere-volume-row">
+          <label class="atmosphere-vol-label">Volume</label>
+          <input type="range" id="atmosphere-volume" min="0" max="100" value="${vol}" class="atmosphere-vol-slider" ${!hasFile ? 'disabled' : ''}>
+          <span class="atmosphere-vol-value" id="atmosphere-vol-value">${vol}%</span>
+        </div>
+        <input type="file" class="music-file-input" id="file-atmosphere" accept="audio/*" style="display:none">
       </div>
     `;
   }
@@ -311,20 +413,86 @@ export class MusicManager {
     });
   }
 
+  _bindAtmosphereCard() {
+    const card = document.getElementById('card-atmosphere');
+    if (!card) return;
+
+    card.querySelector('.music-btn.upload[data-cue="atmosphere"]')?.addEventListener('click', () => {
+      document.getElementById('file-atmosphere')?.click();
+    });
+
+    document.getElementById('file-atmosphere')?.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      await this.audioStorage.save(CUE_KEYS.atmosphere(), file);
+      this.cueStatus[CUE_KEYS.atmosphere()] = true;
+      e.target.value = '';
+      await this.render();
+    });
+
+    card.querySelector('.music-btn.preview[data-cue="atmosphere"]')?.addEventListener('click', async () => {
+      const blob = await this.audioStorage.load(CUE_KEYS.atmosphere());
+      if (blob) await this._previewBlob(blob);
+    });
+
+    // Play/Stop toggle — class is either play-atm or stop-atm depending on state at render time
+    card.querySelector('.music-btn[data-cue="atmosphere"].play-atm, .music-btn[data-cue="atmosphere"].stop-atm')
+      ?.addEventListener('click', async () => {
+        if (this._atmosphereAudio) {
+          this.stopAtmosphere();
+        } else {
+          await this.playAtmosphere();
+        }
+      });
+
+    card.querySelector('.music-btn.clear.danger[data-cue="atmosphere"]')?.addEventListener('click', async () => {
+      this.stopAtmosphere();
+      await this.audioStorage.remove(CUE_KEYS.atmosphere());
+      delete this.cueStatus[CUE_KEYS.atmosphere()];
+      await this.render();
+    });
+
+    document.getElementById('atmosphere-volume')?.addEventListener('input', (e) => {
+      const vol = parseInt(e.target.value) / 100;
+      this._atmosphereVolume = vol;
+      const label = document.getElementById('atmosphere-vol-value');
+      if (label) label.textContent = `${e.target.value}%`;
+      if (this._atmosphereGain) {
+        this._atmosphereGain.gain.value = vol;
+      }
+    });
+  }
+
+  // Update the atmosphere card's play/stop button in-place without a full re-render
+  _updateAtmosphereCard() {
+    const card = document.getElementById('card-atmosphere');
+    if (!card) return;
+    const isPlaying = !!this._atmosphereAudio;
+    const btn = card.querySelector('.music-btn.play-atm, .music-btn.stop-atm');
+    if (btn) {
+      btn.className = `music-btn ${isPlaying ? 'stop-atm' : 'play-atm'}`;
+      btn.textContent = isPlaying ? '■ Stop' : '▶ Play';
+    }
+  }
+
   _bindStopButton() {
     const btn = document.getElementById('stop-music-btn');
     if (btn) {
       // Replace event listener to avoid duplicates
       const newBtn = btn.cloneNode(true);
       btn.parentNode?.replaceChild(newBtn, btn);
-      newBtn.addEventListener('click', () => this.stopMusic());
+      newBtn.addEventListener('click', () => {
+        this.stopMusic();      // stops cue track (walkup / goal horn / timeout)
+        this.stopAtmosphere(); // stops atmosphere loop
+      });
     }
   }
 
   _updateStopButton() {
     const btn = document.getElementById('stop-music-btn');
     if (btn) {
-      btn.classList.toggle('active', !!this._activeAudio);
+      const anyActive = !!this._activeAudio || !!this._atmosphereAudio;
+      btn.classList.toggle('active', anyActive);
     }
   }
 }
