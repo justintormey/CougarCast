@@ -1,7 +1,151 @@
-# QA Report — Issue #8: Custom Sport Action Editor
+# QA Report — Issue #11: Add escHtml() utility
 **Date:** 2026-04-17  
-**Commit reviewed:** bac8931  
+**Commit reviewed:** 58e551a  
 **Reviewer:** QA Agent  
+**Verdict:** PASS (with low-severity follow-up items)
+
+---
+
+## Scope
+
+Issue #11 required:
+1. Add `escHtml()` utility function to `app.js`
+2. Apply to all user-supplied strings in innerHTML templates, specifically:
+   - `renderPeriodStrip()` — `seg` in period chip innerHTML
+   - `updateActionButtons()` — `a.label` in action button innerHTML
+   - `renderRosterEdit()` — player name/number fields in `value=` attributes
+
+---
+
+## Implementation Review
+
+### escHtml() function — CORRECT
+
+```js
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+```
+
+- `&` replaced first: prevents double-encoding (e.g., `&lt;` → `&amp;lt;`)
+- All five required characters covered: `& < > " '`
+- `String(s)` coercion handles null/undefined safely
+- Placement: immediately after imports, before any use — correct
+
+### Call sites verified
+
+| Site | File | Line | Applied? |
+|------|------|------|----------|
+| `renderPeriodStrip` — chip button innerHTML | app.js | ~299 | ✅ `escHtml(seg)` |
+| `updateActionButtons` — action button innerHTML | app.js | ~740 | ✅ `escHtml(a.label)` |
+| `renderRosterEdit` — `number` value attr | app.js | ~615 | ✅ `escHtml(p.number)` |
+| `renderRosterEdit` — `firstName` value attr | app.js | ~616 | ✅ `escHtml(p.firstName)` |
+| `renderRosterEdit` — `lastName` value attr | app.js | ~617 | ✅ `escHtml(p.lastName)` |
+| `renderRosterEdit` — `pronounce` value attr | app.js | ~619 | ✅ `escHtml(p.pronounce \|\| '')` |
+| `_renderSegmentEditor` — seg `value=` attr | app.js | ~410 | ✅ upgraded from `.replace(/"/g,'&quot;')` |
+| `_buildActionEditorHtml` — label `value=` attr | app.js | ~436 | ✅ upgraded from `.replace(/"/g,'&quot;')` |
+| `_buildActionEditorHtml` — id `value=` attr | app.js | ~437 | ✅ upgraded from `.replace(/"/g,'&quot;')` |
+
+All issue-specified sites are covered. Old ad-hoc `.replace(/"/g, '&quot;')` calls properly consolidated.
+
+### Test suite
+
+**59/59 tests pass.** No regressions.
+
+---
+
+## Findings
+
+### LOW-1: `roster.js` renderRoster() — player names unescaped in innerHTML
+
+**File:** `js/roster.js` L22–24
+**Code:**
+```js
+const name = `#${p.number} ${p.firstName} ${p.lastName}`;
+return `<div class="player-row" ...>
+  <span class="player-name">${name}</span>
+  <span class="player-pos">${p.year || ''}</span>
+</div>`;
+```
+**Finding:** Player number, first name, last name, and year are injected into innerHTML without escaping. These are user-supplied via the roster editor (which now correctly escapes `value=` attributes, but this display path in `roster.js` is a separate code path). `escHtml()` is not accessible here — it is defined but not exported from `app.js`.
+**Severity:** Low (self-XSS only, single-user static app)
+**Blocks ship:** No
+
+---
+
+### LOW-2: `sequence-builder.js` renderChips() — chip labels unescaped in innerHTML
+
+**File:** `js/sequence-builder.js` L152
+**Code:**
+```js
+return `<span class="chip ${chip.cssClass}" data-index="${i}" ${style}>${chip.label}</span>`;
+```
+**Finding:** `chip.label` contains player names (from `addPlayerChip`), team names (from `addTeamChip`), and custom action labels (from `addActionChip`) — all user-supplied. No escaping applied.
+**Severity:** Low
+**Blocks ship:** No
+
+---
+
+### LOW-3: `announcements.js` renderAnnouncements() — item title unescaped in innerHTML
+
+**File:** `js/announcements.js` L81
+**Code:**
+```js
+<span class="announcement-title">${item.title}</span>
+```
+**Finding:** `item.title` is typed by the operator in the Announcements modal UI and stored in `gameState.announcements[]`. Rendered without escaping.
+**Severity:** Low
+**Blocks ship:** No
+
+---
+
+### LOW-4: CHANGELOG [Unreleased] missing security fix entry
+
+**File:** `CHANGELOG.md`
+**Finding:** The `[Unreleased]` block does not document the `escHtml()` security hardening from this commit. The history.md and commit message capture it, but CHANGELOG is the user-facing release document.
+**Severity:** Low (docs gap)
+**Blocks ship:** No
+
+---
+
+### INFO: escHtml() is module-private, not exported
+
+`escHtml()` is a plain function in `app.js`, not exported. This was sufficient for the issue scope, but findings LOW-1/2/3 above arise because sibling modules (`roster.js`, `sequence-builder.js`, `announcements.js`) cannot access it. A shared `utils.js` with `export function escHtml(...)` would make the fix available project-wide.
+
+---
+
+## Semver Assessment
+
+Confirmed PATCH. No behavior change for well-formed input. No API changes. Version correctly stays at 0.2.0.
+
+---
+
+## Summary
+
+| Check | Result |
+|-------|--------|
+| escHtml() implementation correct | ✅ |
+| All issue-specified call sites covered | ✅ |
+| Old .replace() calls consolidated | ✅ |
+| 59/59 tests pass | ✅ |
+| No regressions | ✅ |
+| Semver: PATCH | ✅ |
+| Remaining unescaped innerHTML sites | ⚠️ 3 files (LOW) |
+| CHANGELOG updated | ⚠️ missing entry (LOW) |
+
+**Verdict: PASS.** Core deliverable is correct and complete. Three sibling-module innerHTML sites remain unescaped — all low severity given the single-user threat model, none were in the explicit issue scope. Recommend follow-up issue to export `escHtml()` from a shared `utils.js` and patch the remaining three sites.
+
+---
+
+# QA Report — Issue #8: Custom Sport Action Editor
+**Date:** 2026-04-17
+**Commit reviewed:** bac8931
+**Reviewer:** QA Agent
 **Verdict:** PASS
 
 ---
