@@ -9,20 +9,7 @@ import { ElevenLabsTTS } from './tts-elevenlabs.js';
 import { AudioManager } from './audio-manager.js';
 import { AnnouncementsManager } from './announcements.js';
 import { MusicManager } from './music-manager.js';
-
-/**
- * Escape user-supplied strings before inserting into innerHTML.
- * Prevents self-XSS in action labels, period chip names, and roster fields.
- * & must be replaced first to avoid double-encoding subsequent replacements.
- */
-function escHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+import { escHtml } from './utils.js';
 
 const SPORT_PRESETS = {
   lacrosse: {

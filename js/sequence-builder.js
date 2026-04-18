@@ -1,5 +1,7 @@
 // Sequence Builder — chip accumulation, event interpretation, generate → preview → play flow
 
+import { escHtml } from './utils.js';
+
 export class SequenceBuilder {
   constructor(gameState, textGenerator, tts, audioManager, onGameStateChanged) {
     this.gameState = gameState;
@@ -149,7 +151,7 @@ export class SequenceBuilder {
     const container = document.getElementById('sequence-chips');
     container.innerHTML = this.chips.map((chip, i) => {
       const style = chip.color ? `style="background:${chip.color}"` : '';
-      return `<span class="chip ${chip.cssClass}" data-index="${i}" ${style}>${chip.label}</span>`;
+      return `<span class="chip ${chip.cssClass}" data-index="${i}" ${style}>${escHtml(chip.label)}</span>`;
     }).join('');
 
     // Click to remove individual chip

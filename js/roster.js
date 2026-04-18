@@ -1,5 +1,7 @@
 // Roster manager — renders rosters in Game tab, handles player selection
 
+import { escHtml } from './utils.js';
+
 export class RosterManager {
   constructor(gameState, storage, onChanged) {
     this.gameState = gameState;
@@ -19,10 +21,10 @@ export class RosterManager {
 
   renderRoster(team, roster, container) {
     container.innerHTML = roster.map((p, i) => {
-      const name = `#${p.number} ${p.firstName} ${p.lastName}`;
+      const name = escHtml(`#${p.number} ${p.firstName} ${p.lastName}`);
       return `<div class="player-row" data-team="${team}" data-index="${i}" data-number="${p.number}">
         <span class="player-name">${name}</span>
-        <span class="player-pos">${p.year || ''}</span>
+        <span class="player-pos">${escHtml(p.year || '')}</span>
       </div>`;
     }).join('');
 

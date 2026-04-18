@@ -53,7 +53,7 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 - Live demo at `demo.justintormey.com/cougarcast/` — no GitHub Pages or deploy script set up yet; deployment is manual via Half Bakery deployer + CloudFront config in `.local/`
 - ~~Add `escHtml()` utility~~ — done in issue #11; app.js sites escaped; 3 sibling-module sites remain (see issue #14)
 - ~~`music-manager.js` walkup innerHTML sites escaped~~ — done in issue #17; `js/utils.js` created with exported `escHtml()`; player name, jersey number, home/away team mascot/name all wrapped
-- Export `escHtml()` to shared `utils.js` (✓ created by #17) and patch remaining unescaped innerHTML sites in `roster.js` (player display), `sequence-builder.js` (chip labels), `announcements.js` (item titles) — issue #14; `app.js` can also switch to importing from `utils.js` instead of its local copy
+- ~~Export `escHtml()` to shared `utils.js` and patch remaining innerHTML sites~~ — done in issue #18; `roster.js` player name/year, `sequence-builder.js` chip labels, `announcements.js` item titles all escaped; `app.js` local definition removed in favor of `import { escHtml } from './utils.js'`
 - ~~Add `textColor` input to custom action editor rows~~ — done in issue #12; "Dark text" checkbox added to all action editor rows (both existing and newly-added); `_saveActionsFromEditor()` writes `textColor: '#000'` or `'white'`; existing rows pre-populate checked state from saved `textColor`
 - Panner node cleanup (low priority): store `_atmospherePanner`, `_activePanner`, `_previewPanner` references and call `.disconnect()` in `stopAtmosphere()`, `stopMusic()`, and `_previewBlob()` teardown paths — accumulates orphaned nodes in the Web Audio graph over many start/stop cycles; bounded by session duration, no data loss (QA finding L2 from issue #10)
 
@@ -103,6 +103,25 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 ---
 
 ## Session Log
+
+### 2026-04-18 — Issue #18: Complete escHtml() migration to utils.js
+
+**Work:** Migrated all remaining unescaped innerHTML sites to use the shared `escHtml()` from `js/utils.js`. Removed the local `escHtml` definition from `app.js` and replaced it with an import. Added `import { escHtml } from './utils.js'` to `roster.js`, `sequence-builder.js`, and `announcements.js`, then applied `escHtml()` to each unescaped user-data site.
+
+**Files changed:**
+- `js/app.js` — Removed local `escHtml()` function; replaced with `import { escHtml } from './utils.js'`.
+- `js/roster.js` — Added import; escaped `#${p.number} ${p.firstName} ${p.lastName}` and `p.year` in `renderRoster()`.
+- `js/sequence-builder.js` — Added import; escaped `chip.label` in `renderChips()`.
+- `js/announcements.js` — Added import; escaped `item.title` in `render()`.
+- `history.md` — Marked issue #18 complete in Unfinished Work; added this session log entry.
+
+**Architecture:**
+- `js/utils.js` is now the single canonical source for `escHtml()` — no module defines it locally.
+- `data-*` attribute values (`data-team`, `data-index`, `data-number`) are deliberately not escaped: they come from structured data (not free-form text), are used only as DOM keys, and are never rendered as visible HTML.
+
+**Status:** PATCH — no behavior change for well-formed input. 59/59 tests pass.
+
+---
 
 ### 2026-04-18 — Issue #17: Expand escHtml() coverage to music-manager.js
 

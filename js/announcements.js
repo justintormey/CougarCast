@@ -1,5 +1,7 @@
 // Announcements Manager — flat ordered list, drag to reorder, swipe to delete
 
+import { escHtml } from './utils.js';
+
 export class AnnouncementsManager {
   constructor(gameState, storage, tts, audioManager) {
     this.gameState = gameState;
@@ -78,7 +80,7 @@ export class AnnouncementsManager {
             <button class="reorder-btn" data-index="${index}" data-dir="up" ${isFirst ? 'disabled' : ''} title="Move up">&#9650;</button>
             <button class="reorder-btn" data-index="${index}" data-dir="down" ${isLast ? 'disabled' : ''} title="Move down">&#9660;</button>
           </div>
-          <span class="announcement-title">${item.title}</span>
+          <span class="announcement-title">${escHtml(item.title)}</span>
           <div class="announcement-controls">
             <span class="status-badge ${statusClass}">${statusText}</span>
             ${actionBtn}
