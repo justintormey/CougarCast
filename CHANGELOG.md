@@ -16,6 +16,9 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Auto-load period score announcement to audio bar on forward period advance (issue #8)
 - Sport badge pill in header showing active sport name at a glance (issue #8)
 
+### Security
+- Added `escHtml()` utility and applied to all user-data innerHTML injection sites in `app.js` — period chip labels, action button labels, and roster input `value=` attributes (issue #11, QA finding M1)
+
 ---
 
 ## [0.2.0] — 2026-04-14
