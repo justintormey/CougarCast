@@ -4,7 +4,7 @@
 
 AI-powered live sports announcing system. The operator taps a player and an action on a tablet; the system generates a varied natural-language announcement, converts it to speech via ElevenLabs, and routes audio to the PA system through stereo channel separation. Originally built for high school lacrosse but ships with presets for 7 sports.
 
-Public open-source reference project at `~/Documents/PROJECTS/CougarCast`.  
+Public open-source reference project at `~/PROJECTS/CougarCast`.  
 Team-specific roster data and deploy config live in `.local/` (gitignored, never committed).
 
 ---
