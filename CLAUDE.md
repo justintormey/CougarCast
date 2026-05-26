@@ -12,7 +12,7 @@ AI-powered live sports announcing system for high school sports. Operator taps a
 - **Audio routing**: Stereo channel separation (left = booth headphones, right = PA broadcast) with one stereo Y-splitter cable
 - **Zero friction deployment**: Open `index.html` in a browser. No `npm install`, no build step, no server
 - **Team-specific data**: Rosters and deploy config live in `.local/` (gitignored); never committed
-- **Game files**: Generated locally via `scripts/generate-game.py`, deployed to S3 via Half Bakery deployer
+- **Game files**: Generated locally via `scripts/generate-game.py`, deployed to S3 via `./scripts/deploy`
 
 ---
 
@@ -117,7 +117,7 @@ research/                           # Issue audits (e.g., multi-sport config)
 
 ### Deployment is S3 + Manual
 
-The live demo (`demo.justintormey.com`) is a S3 bucket + CloudFront distribution. Deploy config lives in `.local/` (gitignored). Half Bakery's `deployer.py` handles the sync. To deploy changes: use the deployer script or sync manually via AWS CLI.
+The live demo (`demo.justintormey.com`) is a S3 bucket + CloudFront distribution. Deploy config lives in `.local/` (gitignored). To deploy changes: `./scripts/deploy --dry-run` to preview, then `./scripts/deploy` to apply (S3 sync + CloudFront invalidation).
 
 ### Test Infrastructure
 
