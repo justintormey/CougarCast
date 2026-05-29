@@ -1,0 +1,51 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  S3_BUCKET: justintormey.com
+  S3_PREFIX: cougarcast
+
+jobs:
+  deploy:
+    name: Deploy to S3 + CloudFront
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Stage clean site
+        run: |
+          mkdir -p _site
+          rsync -a \
+            --exclude '_site' \
+            --exclude '.git' --exclude '.github' --exclude '.gitignore' --exclude '.gitattributes' \
+            --exclude '.local' --exclude '.agent' \
+            --exclude 'scripts' --exclude 'tests' --exclude 'docs' --exclude 'iam' \
+            --exclude 'node_modules' --exclude '__pycache__' --exclude '*.pyc' \
+            --exclude '*.md' --exclude '*.sh' \
+            --exclude 'package.json' --exclude 'package-lock.json' --exclude 'LICENSE' \
+            --exclude '.DS_Store' \
+            ./ _site/
+
+      - name: Sync to S3 (prefix-scoped --delete)
+        run: aws s3 sync _site/ "s3://${S3_BUCKET}/${S3_PREFIX}/" --delete
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CF_DISTRIBUTION_ID }}" \
+            --paths "/${S3_PREFIX}/*"
