@@ -104,6 +104,21 @@ Team-specific roster data and deploy config live in `.local/` (gitignored, never
 
 ## Session Log
 
+### 2026-06-10 — Privacy-respecting analytics (Plausible)
+
+**Work:** Added a self-hosted Plausible Community Edition tracking snippet so the live demo reports to the shared `demo.justintormey.com` Plausible site. CougarCast is served at `demo.justintormey.com/cougarcast/`, one subpath of that single site.
+
+**Files changed:**
+- `index.html` — added the Plausible snippet in `<head>`, `data-domain="demo.justintormey.com"`, **enhanced** variant: `https://ugh.8a9s.com/js/script.file-downloads.outbound-links.js`.
+
+**Rationale:**
+- **Enhanced variant** (file-downloads + outbound-links) was chosen because this is a showcase demo — outbound clicks to GitHub / the repo and any file downloads are exactly the engagement signals worth measuring.
+- **Privacy:** self-hosted Plausible CE on the owner's Mac Mini M1 home server (`jmini.local`, Docker/Colima, exposed via Cloudflare Tunnel at `https://ugh.8a9s.com`). Cookieless, no PII, GDPR-friendly, no consent banner.
+
+**Status:** Docs-only entry; snippet code was already added/pushed in a prior commit.
+
+---
+
 ### 2026-04-18 — Issue #20: Escape voice name and action.id in app.js innerHTML
 
 **Work:** Applied `escHtml()` to the two remaining unescaped innerHTML sites in `app.js`: `v.name` and `v.voice_id` in the voice-select dropdown built from the ElevenLabs API response, and `a.id` in the `data-action` attribute of action buttons.

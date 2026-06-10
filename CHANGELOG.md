@@ -10,6 +10,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Privacy-respecting analytics — the live demo (`demo.justintormey.com/cougarcast/`) now reports to the shared `demo.justintormey.com` Plausible site via a tracking snippet in `index.html` `<head>`. Uses the **enhanced** variant (`script.file-downloads.outbound-links.js`) to capture outbound clicks (GitHub / repo) and file downloads — the engagement signals that matter for a showcase demo. Self-hosted Plausible Community Edition on the owner's Mac Mini home server (Docker, Cloudflare Tunnel at `https://ugh.8a9s.com`); cookieless, no PII, GDPR-friendly, no consent banner (2026-06-10).
 - Auto-announce score at period end — when advancing to the next period, CougarCast automatically generates a natural-language score summary and sends it to ElevenLabs TTS for PA broadcast (issue #9). Configurable via the Sport Configuration section in Settings. Gracefully degrades to text-only if no API key or voice is configured.
 - `autoAnnouncePeriodEnd` field in `gameState` (persisted to localStorage, default `true`) — controls whether period-end score announcements play automatically
 - Atmosphere / crowd ambient loop — fourth and final PA audio layer (issue #10). Runs on a separate audio graph from the event-triggered cue track; persists through goal horns, walkup songs, and TTS announcements; manually started/stopped via the Music tab; volume-controlled via a live-gain slider (no restart required). Stored in IndexedDB alongside other cues.
